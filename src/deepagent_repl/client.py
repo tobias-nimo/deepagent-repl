@@ -1,0 +1,175 @@
+from __future__ import annotations
+
+from typing import Any
+
+from langgraph_sdk import get_client
+
+
+class AgentClient:
+    """Thin wrapper around the LangGraph SDK async client."""
+
+    def __init__(self, url: str, api_key: str | None = None):
+        self._client = get_client(url=url, api_key=api_key)
+
+    async def discover_assistants(self) -> list[dict]:
+        """List all assistants available on the server."""
+        return await self._client.assistants.search()
+
+    async def create_thread(self) -> str:
+        """Create a new thread and return its ID."""
+        thread = await self._client.threads.create()
+        return thread["thread_id"]
+
+    async def get_thread_state(self, thread_id: str) -> dict:
+        """Get the current state of a thread."""
+        return await self._client.threads.get_state(thread_id)
+
+    async def stream_message(
+        self, thread_id: str, assistant_id: str, content: str | list,
+    ):
+        """Stream a run, yielding (event_type, data) tuples.
+
+        content can be a plain string or a multimodal content list (for images).
+
+        Uses stream_mode=["updates", "messages"] so we get both node-level updates
+        (for tool call visibility) and token-level message chunks (for streaming text).
+        """
+        input_data = {"messages": [{"role": "user", "content": content}]}
+        async for chunk in self._client.runs.stream(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            input=input_data,
+            stream_mode=["updates", "messages"],
+        ):
+            yield chunk
+
+    async def get_graph(self, graph_id: str) -> dict:
+        """Fetch graph metadata (nodes, edges, config schema, etc.)."""
+        return await self._client.assistants.get_graph(
+            assistant_id=graph_id,
+        )
+
+    async def discover_skills(self, assistant_id: str) -> list[dict]:
+        """Discover available skills from a Deep Agent server.
+
+        Attempts multiple strategies:
+        1. Check assistant metadata for a skills list
+        2. Search the graph's tool list for skill-like tools
+        Returns a list of dicts with 'name' and 'description' keys.
+        """
+        skills: list[dict] = []
+
+        # Strategy 1: Check assistant metadata
+        try:
+            assistants = await self._client.assistants.search()
+            for a in assistants:
+                if a.get("assistant_id") == assistant_id:
+                    meta = a.get("metadata", {}) or {}
+                    skill_list = meta.get("skills", [])
+                    if isinstance(skill_list, list):
+                        for s in skill_list:
+                            if isinstance(s, dict) and s.get("name"):
+                                skills.append({
+                                    "name": s["name"],
+                                    "description": s.get("description", ""),
+                                })
+                    break
+        except Exception:
+            pass
+
+        if skills:
+            return skills
+
+        # Strategy 2: Inspect graph tools via graph schema
+        try:
+            graph_info = await self._client.assistants.get_graph(
+                assistant_id=assistant_id,
+            )
+            # LangGraph graph info may expose tool definitions in nodes
+            nodes = graph_info.get("nodes", [])
+            for node in nodes:
+                if isinstance(node, dict):
+                    node_data = node.get("data", {}) or {}
+                    # Tools node often has a list of tool names
+                    tools = node_data.get("tools", [])
+                    for tool in tools:
+                        if isinstance(tool, dict) and tool.get("name"):
+                            name = tool["name"]
+                            # Filter to skill-like tools (avoid internal ones)
+                            if not name.startswith("_"):
+                                skills.append({
+                                    "name": name,
+                                    "description": tool.get("description", ""),
+                                })
+        except Exception:
+            pass
+
+        return skills
+
+    async def send_message(self, thread_id: str, assistant_id: str, content: str) -> dict:
+        """Send a message and wait for the full response (non-streaming).
+
+        Returns the final thread state values.
+        """
+        input_data = {"messages": [{"role": "user", "content": content}]}
+        await self._client.runs.wait(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            input=input_data,
+        )
+        state = await self.get_thread_state(thread_id)
+        return state.get("values", {})
+
+    async def copy_thread_with_messages(self, messages: list[dict]) -> str:
+        """Create a new thread pre-loaded with the given messages."""
+        thread = await self._client.threads.create()
+        thread_id = thread["thread_id"]
+        # Patch the thread state to include the summary messages
+        await self._client.threads.update_state(
+            thread_id=thread_id,
+            values={"messages": messages},
+        )
+        return thread_id
+
+    async def get_thread_history(self, thread_id: str, limit: int = 50) -> list[dict]:
+        """Fetch the checkpoint history for a thread.
+
+        Returns a list of state snapshots, most recent first.
+        Each entry has 'checkpoint', 'values', 'next', 'metadata', etc.
+        """
+        return await self._client.threads.get_history(thread_id, limit=limit)
+
+    async def fork_thread(self, thread_id: str, checkpoint: dict) -> str:
+        """Fork a thread from a specific checkpoint.
+
+        Creates a new thread and copies the state at the given checkpoint.
+        """
+        messages = checkpoint.get("values", {}).get("messages", [])
+        new_thread_id = await self.copy_thread_with_messages(messages)
+        return new_thread_id
+
+    async def list_threads(self) -> list[dict]:
+        """List threads on the server, most recent first."""
+        return await self._client.threads.search(limit=100)
+
+    async def get_thread(self, thread_id: str) -> dict:
+        """Get a thread by ID from the server."""
+        return await self._client.threads.get(thread_id)
+
+    async def delete_thread(self, thread_id: str) -> None:
+        """Delete a thread on the server."""
+        await self._client.threads.delete(thread_id)
+
+    async def resume(self, thread_id: str, assistant_id: str, resume_value: Any):
+        """Resume an interrupted run with a Command(resume=value).
+
+        Streams the continuation, yielding the same event types as stream_message.
+        """
+        async for chunk in self._client.runs.stream(
+            thread_id=thread_id,
+            assistant_id=assistant_id,
+            input=None,
+            command={"resume": resume_value},
+            stream_mode=["updates", "messages"],
+        ):
+            yield chunk

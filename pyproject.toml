@@ -1,0 +1,42 @@
+[project]
+name = "deepagent-repl"
+version = "0.1.0"
+description = "Terminal REPL for any LangChain Deep Agent server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph-sdk>=0.3.11",
+    "prompt-toolkit>=3.0",
+    "rich>=13.0",
+    "pydantic-settings>=2.0",
+    "aiosqlite>=0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+deepagent-repl = "deepagent_repl.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deepagent_repl"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
