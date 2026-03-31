@@ -8,6 +8,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 
 # Persistent history file
 HISTORY_DIR = Path.home() / ".deepagent-repl"
@@ -47,6 +48,19 @@ def _create_key_bindings() -> KeyBindings:
     def _ctrl_j(event):
         """Ctrl+J inserts a newline."""
         event.current_buffer.insert_text("\n")
+
+    # Shift+Enter inserts a newline in terminals that support the kitty
+    # keyboard protocol or xterm's modifyOtherKeys mode.  These terminals
+    # send CSI 13;2u (\x1b[13;2u) for Shift+Enter which prompt_toolkit
+    # already maps to Keys.ShiftEnter when available.
+    try:
+        @kb.add(Keys.ShiftEnter)
+        def _shift_enter(event):
+            """Shift+Enter inserts a newline (kitty/xterm protocol)."""
+            event.current_buffer.insert_text("\n")
+    except (AttributeError, ValueError):
+        # Keys.ShiftEnter may not exist in older prompt_toolkit versions
+        pass
 
     @kb.add("c-l")
     def _ctrl_l(event):
