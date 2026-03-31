@@ -10,3 +10,4 @@ build/
 *.db
 .ruff_cache/
 .claude/
+.DS_Store
