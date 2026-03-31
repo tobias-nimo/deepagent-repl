@@ -87,10 +87,8 @@ async def dispatch(client: "AgentClient", session: "Session", text: str) -> bool
 
     entry = get_command(name)
     if entry is None:
-        from deepagent_repl.ui.renderer import render_error
-
-        render_error(f"Unknown command: /{name}. Type /help for available commands.")
-        return True
+        # Forward unknown commands to the agent as skill invocations
+        return False
 
     handler, _ = entry
     await handler(client, session, args)
