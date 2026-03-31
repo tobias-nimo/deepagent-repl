@@ -1,4 +1,4 @@
-"""The /skills command — list discovered skills from the connected agent."""
+"""The /skills command — list discovered skills/tools from the connected agent."""
 
 from __future__ import annotations
 
@@ -8,16 +8,47 @@ from deepagent_repl.commands import command, dynamic_commands
 from deepagent_repl.ui.renderer import console, render_info
 
 
-@command("skills", "List available skills from the connected agent")
+@command("skills", "List available skills/tools from the connected agent")
 async def cmd_skills(client, session, args: str) -> None:
-    skills = dynamic_commands()
+    # /skills refresh — re-fetch skills_metadata from thread state
+    if args.strip().lower() == "refresh":
+        render_info("Fetching skills from thread state...")
+        try:
+            skills_from_state = await client.get_skills_from_state(session.thread_id)
+            if skills_from_state:
+                from deepagent_repl.cli import _register_skill_command
+
+                session.discovered_skills_from_state = True
+                for skill in skills_from_state:
+                    name = skill.get("name", "")
+                    desc = skill.get("description", "")
+                    path = skill.get("path", "")
+                    if name:
+                        session.discovered_tools[name] = desc
+                        _register_skill_command(name, desc, path)
+                render_info(f"Found {len(skills_from_state)} skill(s). Use /<skill-name> to invoke.")
+            else:
+                render_info(
+                    "No skills_metadata in thread state. "
+                    "Send a message first so the agent loads its skills."
+                )
+        except Exception as e:
+            render_info(f"Could not fetch skills: {e}")
+        return
+
+    # Combine dynamic commands (from server metadata) and discovered tools
+    skills = dict(dynamic_commands())
+    for name, desc in session.discovered_tools.items():
+        if name not in skills:
+            skills[name] = desc
+
     if not skills:
-        render_info("No skills discovered from the connected agent.")
-        render_info("Skills are auto-detected on connect if the agent exposes them.")
+        render_info("No skills discovered yet.")
+        render_info("Send a message first, then use /skills refresh to fetch from agent state.")
         return
 
     table = Table(show_header=True, header_style="bold", expand=False, padding=(0, 1))
-    table.add_column("Command", style="bold cyan", min_width=16)
+    table.add_column("Skill", style="bold cyan", min_width=20)
     table.add_column("Description", style="dim")
 
     for name, desc in sorted(skills.items()):
@@ -26,4 +57,4 @@ async def cmd_skills(client, session, args: str) -> None:
     console.print()
     console.print(table)
     console.print()
-    render_info(f"{len(skills)} skill(s) available. Use /<skill-name> [args] to invoke.")
+    render_info(f"{len(skills)} skill(s). Use /<skill-name> [question] to invoke.")

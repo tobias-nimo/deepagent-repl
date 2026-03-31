@@ -95,6 +95,31 @@ async def connect(client: AgentClient, session: Session) -> bool:
     return True
 
 
+def _register_skill_command(name: str, desc: str, path: str) -> None:
+    """Register a skill as a dynamic slash command.
+
+    When invoked as /skill-name <question>, the agent is told to read the
+    SKILL.md file and follow its instructions to answer the question.
+    """
+
+    def _make_handler(skill_name: str, skill_path: str):
+        async def handler(c: AgentClient, s: Session, args: str) -> None:
+            if skill_path:
+                prompt = (
+                    f"Read the skill instructions from `{skill_path}` "
+                    f"and follow them"
+                )
+            else:
+                prompt = f"Use the {skill_name} skill"
+            if args:
+                prompt += f" to: {args}"
+            await handle_stream(c, s, prompt)
+
+        return handler
+
+    register_skill(name, desc, _make_handler(name, path))
+
+
 async def discover_and_register_skills(client: AgentClient, session: Session) -> None:
     """Discover skills from the connected server and register as dynamic slash commands."""
     clear_dynamic()
@@ -105,28 +130,18 @@ async def discover_and_register_skills(client: AgentClient, session: Session) ->
     try:
         skills = await client.discover_skills(session.assistant_id)
     except Exception:
-        return
+        skills = []
 
     for skill in skills:
         name = skill.get("name", "")
         desc = skill.get("description", "")
+        path = skill.get("path", "")
         if not name:
             continue
-
-        # Create a handler that sends a message invoking the skill
-        def _make_handler(skill_name: str):
-            async def handler(c: AgentClient, s: Session, args: str) -> None:
-                prompt = f"Use the {skill_name} skill"
-                if args:
-                    prompt += f" to: {args}"
-                await handle_stream(c, s, prompt)
-
-            return handler
-
-        register_skill(name, desc, _make_handler(name))
+        _register_skill_command(name, desc, path)
 
     if skills:
-        render_info(f"Discovered {len(skills)} skill(s). Type /skills to list.")
+        render_info(f"Discovered {len(skills)} skill(s) from server metadata. Type /skills to list.")
 
 
 # Token threshold for auto-compression warning (default ~80% of 200k context)
@@ -140,6 +155,17 @@ def _flush_usage(state: StreamState, session: Session) -> None:
         session.add_usage(state.total_input_tokens, state.total_output_tokens)
     if state.model and not session.model:
         session.model = state.model
+
+    # Collect tool names observed during this stream
+    _internal = {
+        "__interrupt", "human", "todo_list", "TodoList",
+        "manage_todos", "ask_human", "ask_user",
+    }
+    for tc in state.tool_calls:
+        name = tc.get("name", "")
+        if name and not name.startswith("_") and name not in _internal:
+            if name not in session.discovered_tools:
+                session.discovered_tools[name] = ""
 
 
 async def _consume_stream(stream, state: StreamState, renderer: StreamingRenderer) -> None:
@@ -338,6 +364,26 @@ async def handle_stream(
         render_error(f"Stream error: {e}")
     finally:
         session.status = "idle"
+        # Add visual separation before the next prompt
+        console.print()
+
+        # Discover skills from thread state (Deep Agents SkillsMiddleware
+        # stores skills_metadata in state after the first agent turn)
+        if not session.discovered_skills_from_state:
+            try:
+                skills_from_state = await client.get_skills_from_state(session.thread_id)
+                if skills_from_state:
+                    session.discovered_skills_from_state = True
+                    for skill in skills_from_state:
+                        name = skill.get("name", "")
+                        desc = skill.get("description", "")
+                        path = skill.get("path", "")
+                        if name:
+                            session.discovered_tools[name] = desc
+                            _register_skill_command(name, desc, path)
+            except Exception:
+                pass
+
         # Update thread metadata in local index
         try:
             if isinstance(user_input, str):
@@ -410,7 +456,18 @@ async def run() -> None:
 
         # Dispatch slash commands before sending to server
         if is_command(text):
-            await dispatch_command(client, session, text)
+            handled = await dispatch_command(client, session, text)
+            if handled:
+                continue
+            # Unknown slash command — forward to agent as a skill invocation
+            parts = text[1:].split(None, 1)
+            skill_name = parts[0] if parts else text[1:]
+            skill_args = parts[1] if len(parts) > 1 else ""
+            prompt = f"Use the {skill_name} skill"
+            if skill_args:
+                prompt += f": {skill_args}"
+            render_info(f"Invoking skill: {skill_name}")
+            await handle_stream(client, session, prompt)
             continue
 
         # Auto-detect image paths in text and convert to multimodal

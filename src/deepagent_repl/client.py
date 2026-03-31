@@ -52,59 +52,52 @@ class AgentClient:
     async def discover_skills(self, assistant_id: str) -> list[dict]:
         """Discover available skills from a Deep Agent server.
 
-        Attempts multiple strategies:
-        1. Check assistant metadata for a skills list
-        2. Search the graph's tool list for skill-like tools
+        Checks assistant metadata for skills/tools lists.
         Returns a list of dicts with 'name' and 'description' keys.
         """
         skills: list[dict] = []
 
-        # Strategy 1: Check assistant metadata
         try:
             assistants = await self._client.assistants.search()
             for a in assistants:
                 if a.get("assistant_id") == assistant_id:
                     meta = a.get("metadata", {}) or {}
-                    skill_list = meta.get("skills", [])
-                    if isinstance(skill_list, list):
-                        for s in skill_list:
+                    for key in ("skills", "tools"):
+                        for s in meta.get(key, []):
                             if isinstance(s, dict) and s.get("name"):
                                 skills.append({
                                     "name": s["name"],
                                     "description": s.get("description", ""),
                                 })
+                            elif isinstance(s, str):
+                                skills.append({"name": s, "description": ""})
                     break
         except Exception:
             pass
 
-        if skills:
-            return skills
+        return skills
 
-        # Strategy 2: Inspect graph tools via graph schema
+    async def get_skills_from_state(self, thread_id: str) -> list[dict]:
+        """Extract skills_metadata from thread state.
+
+        Deep Agents' SkillsMiddleware stores loaded skill metadata in the
+        graph state after the first agent turn. This reads it from the
+        thread checkpoint.
+
+        Returns a list of dicts with 'name', 'description', and 'path' keys.
+        """
         try:
-            graph_info = await self._client.assistants.get_graph(
-                assistant_id=assistant_id,
-            )
-            # LangGraph graph info may expose tool definitions in nodes
-            nodes = graph_info.get("nodes", [])
-            for node in nodes:
-                if isinstance(node, dict):
-                    node_data = node.get("data", {}) or {}
-                    # Tools node often has a list of tool names
-                    tools = node_data.get("tools", [])
-                    for tool in tools:
-                        if isinstance(tool, dict) and tool.get("name"):
-                            name = tool["name"]
-                            # Filter to skill-like tools (avoid internal ones)
-                            if not name.startswith("_"):
-                                skills.append({
-                                    "name": name,
-                                    "description": tool.get("description", ""),
-                                })
+            state = await self.get_thread_state(thread_id)
+            values = state.get("values", {})
+            skills_metadata = values.get("skills_metadata", [])
+            if isinstance(skills_metadata, list):
+                return [
+                    s for s in skills_metadata
+                    if isinstance(s, dict) and s.get("name")
+                ]
         except Exception:
             pass
-
-        return skills
+        return []
 
     async def send_message(self, thread_id: str, assistant_id: str, content: str) -> dict:
         """Send a message and wait for the full response (non-streaming).
