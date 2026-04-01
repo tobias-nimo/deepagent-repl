@@ -56,33 +56,61 @@ def _parse_interrupt(raw: dict, task_id: str | None) -> InterruptInfo:
     options: list[str] = []
 
     if isinstance(value, dict):
-        # Common HITL interrupt shapes:
-        # {"action": "edit_file", "path": "...", "diff": "...", "options": [...]}
-        # {"question": "...", "options": [...]}
-        # {"type": "approve", "tool_name": "...", "args": {...}}
-        description = (
-            value.get("question")
-            or value.get("description")
-            or value.get("message")
-            or value.get("action")
-            or value.get("type")
-            or ""
-        )
-        detail = (
-            value.get("diff")
-            or value.get("detail")
-            or value.get("content")
-            or value.get("path")
-            or ""
-        )
-        if isinstance(detail, dict):
+        if _is_hitl_middleware_interrupt(value):
+            # HumanInTheLoopMiddleware format:
+            # {"action_requests": [{"name": "edit_file", "args": {...}}],
+            #  "review_configs": [{"action_name": "edit_file", "allowed_decisions": [...]}]}
             import json
 
-            detail = json.dumps(detail, indent=2, ensure_ascii=False)
+            action_requests = value.get("action_requests", [])
+            review_configs = value.get("review_configs", [])
+            names = [ar.get("name", "") for ar in action_requests]
+            description = ", ".join(names) if names else "Action required"
 
-        raw_options = value.get("options", [])
-        if isinstance(raw_options, list):
-            options = [str(o) for o in raw_options]
+            # Build detail from args of each action request
+            detail_parts = []
+            for ar in action_requests:
+                args = ar.get("args", {})
+                if args:
+                    detail_parts.append(
+                        f"{ar.get('name', '')}: {json.dumps(args, indent=2, ensure_ascii=False)}"
+                    )
+                ar_desc = ar.get("description")
+                if ar_desc:
+                    detail_parts.append(ar_desc)
+            detail = "\n\n".join(detail_parts)
+
+            # Extract allowed decisions from review configs
+            if review_configs:
+                allowed = review_configs[0].get("allowed_decisions", [])
+                options = [str(d) for d in allowed] if allowed else []
+        else:
+            # Generic interrupt shapes:
+            # {"question": "...", "options": [...]}
+            # {"type": "approve", "tool_name": "...", "args": {...}}
+            description = (
+                value.get("question")
+                or value.get("description")
+                or value.get("message")
+                or value.get("action")
+                or value.get("type")
+                or ""
+            )
+            detail = (
+                value.get("diff")
+                or value.get("detail")
+                or value.get("content")
+                or value.get("path")
+                or ""
+            )
+            if isinstance(detail, dict):
+                import json
+
+                detail = json.dumps(detail, indent=2, ensure_ascii=False)
+
+            raw_options = value.get("options", [])
+            if isinstance(raw_options, list):
+                options = [str(o) for o in raw_options]
     elif isinstance(value, str):
         description = value
     else:
@@ -105,12 +133,12 @@ def _parse_interrupt(raw: dict, task_id: str | None) -> InterruptInfo:
 def _is_hitl_middleware_interrupt(value: Any) -> bool:
     """Check if interrupt value originates from HumanInTheLoopMiddleware.
 
-    HITL middleware interrupts have an "action" key with tool call info
-    (e.g. {"action": "edit_file", "args": {...}, ...}).
+    HITLRequest has "action_requests" (list of ActionRequest) and
+    "review_configs" (list of ReviewConfig).
     """
     if not isinstance(value, dict):
         return False
-    return "action" in value and isinstance(value.get("action"), str)
+    return "action_requests" in value and "review_configs" in value
 
 
 def build_resume_value(interrupt: InterruptInfo, choice: str, edited_content: str | None = None):
@@ -118,27 +146,36 @@ def build_resume_value(interrupt: InterruptInfo, choice: str, edited_content: st
 
     The resume value format depends on the interrupt's original value structure.
     For HumanInTheLoopMiddleware interrupts, the resume must use the structured
-    format: {"decisions": [{"type": "approve|reject|edit", ...}]}
+    HITLResponse format: {"decisions": [{"type": "approve|reject|edit", ...}]}
+    with one decision per action_request.
     """
     if _is_hitl_middleware_interrupt(interrupt.value):
+        action_requests = interrupt.value.get("action_requests", [])
+        num_actions = max(len(action_requests), 1)
+
         if edited_content is not None and choice == "edit":
-            # Rebuild the action with edited args
-            decision: dict[str, Any] = {
-                "type": "edit",
-                "edited_action": {
-                    "name": interrupt.value["action"],
-                    "args": {**interrupt.value.get("args", {}), "content": edited_content},
-                },
-            }
+            # For edit, rebuild each action with edited args
+            decisions: list[dict[str, Any]] = []
+            for ar in action_requests:
+                decisions.append({
+                    "type": "edit",
+                    "edited_action": {
+                        "name": ar.get("name", ""),
+                        "args": {**ar.get("args", {}), "content": edited_content},
+                    },
+                })
+            if not decisions:
+                decisions = [{"type": "edit"}]
         elif choice in ("reject", "deny", "no"):
-            decision = {"type": "reject"}
+            decision: dict[str, Any] = {"type": "reject"}
             if edited_content:
                 decision["message"] = edited_content
+            decisions = [decision] * num_actions
         else:
             # approve / accept / yes
-            decision = {"type": "approve"}
+            decisions = [{"type": "approve"}] * num_actions
 
-        return {"decisions": [decision]}
+        return {"decisions": decisions}
 
     # Non-HITL-middleware interrupts: preserve legacy behavior
     if edited_content is not None:
