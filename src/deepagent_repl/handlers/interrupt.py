@@ -102,19 +102,50 @@ def _parse_interrupt(raw: dict, task_id: str | None) -> InterruptInfo:
     )
 
 
+def _is_hitl_middleware_interrupt(value: Any) -> bool:
+    """Check if interrupt value originates from HumanInTheLoopMiddleware.
+
+    HITL middleware interrupts have an "action" key with tool call info
+    (e.g. {"action": "edit_file", "args": {...}, ...}).
+    """
+    if not isinstance(value, dict):
+        return False
+    return "action" in value and isinstance(value.get("action"), str)
+
+
 def build_resume_value(interrupt: InterruptInfo, choice: str, edited_content: str | None = None):
     """Build the resume value to send back to the server.
 
     The resume value format depends on the interrupt's original value structure.
+    For HumanInTheLoopMiddleware interrupts, the resume must use the structured
+    format: {"decisions": [{"type": "approve|reject|edit", ...}]}
     """
+    if _is_hitl_middleware_interrupt(interrupt.value):
+        if edited_content is not None and choice == "edit":
+            # Rebuild the action with edited args
+            decision: dict[str, Any] = {
+                "type": "edit",
+                "edited_action": {
+                    "name": interrupt.value["action"],
+                    "args": {**interrupt.value.get("args", {}), "content": edited_content},
+                },
+            }
+        elif choice in ("reject", "deny", "no"):
+            decision = {"type": "reject"}
+            if edited_content:
+                decision["message"] = edited_content
+        else:
+            # approve / accept / yes
+            decision = {"type": "approve"}
+
+        return {"decisions": [decision]}
+
+    # Non-HITL-middleware interrupts: preserve legacy behavior
     if edited_content is not None:
-        # User edited the content — send it back
         if isinstance(interrupt.value, dict):
             return {**interrupt.value, "action": choice, "content": edited_content}
         return edited_content
 
-    # Simple choice — return the choice string directly
-    # Many HITL implementations just expect the option string
     return choice
 
 
