@@ -7,8 +7,12 @@ from deepagent_repl.storage.db import upsert_thread
 from deepagent_repl.ui.renderer import render_info
 
 
-@command("new", "Start a new conversation thread")
+@command("new", "Clear screen and start a new conversation")
 async def cmd_new(client, session, args: str) -> None:
+    from deepagent_repl.ui.renderer import console
+
+    console.clear()
+
     thread_id = await client.create_thread()
     session.thread_id = thread_id
     session.messages = []
