@@ -7,8 +7,16 @@ from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory
+from prompt_toolkit.input import ansi_escape_sequences as ansi
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.keys import Keys
+
+# Map Shift+Enter escape sequences to an unused function key so we can bind it.
+# Terminals using the kitty keyboard protocol (kitty, WezTerm, Ghostty, etc.)
+# send CSI 13;2u for Shift+Enter. prompt_toolkit 3.0.x lacks Keys.ShiftEnter,
+# so we route the sequence through F24 which is otherwise unused.
+_SHIFT_ENTER_KEY = Keys.F24
+ansi.ANSI_SEQUENCES["\x1b[13;2u"] = _SHIFT_ENTER_KEY
 
 # Persistent history file
 HISTORY_DIR = Path.home() / ".deepagent-repl"
@@ -49,18 +57,10 @@ def _create_key_bindings() -> KeyBindings:
         """Ctrl+J inserts a newline."""
         event.current_buffer.insert_text("\n")
 
-    # Shift+Enter inserts a newline in terminals that support the kitty
-    # keyboard protocol or xterm's modifyOtherKeys mode.  These terminals
-    # send CSI 13;2u (\x1b[13;2u) for Shift+Enter which prompt_toolkit
-    # already maps to Keys.ShiftEnter when available.
-    try:
-        @kb.add(Keys.ShiftEnter)
-        def _shift_enter(event):
-            """Shift+Enter inserts a newline (kitty/xterm protocol)."""
-            event.current_buffer.insert_text("\n")
-    except (AttributeError, ValueError):
-        # Keys.ShiftEnter may not exist in older prompt_toolkit versions
-        pass
+    @kb.add(_SHIFT_ENTER_KEY)
+    def _shift_enter(event):
+        """Shift+Enter inserts a newline (kitty keyboard protocol)."""
+        event.current_buffer.insert_text("\n")
 
     @kb.add("c-l")
     def _ctrl_l(event):

@@ -9,7 +9,7 @@ A rich terminal REPL for any [LangChain Deep Agent](https://github.com/langchain
 uv sync
 
 # Start your Deep Agent server (in another terminal)
-cd /path/to/your/agent && uv run langgraph dev
+cd /path/to/your/agent && uv run langgraph dev --no-browser
 
 # Connect
 uv run deepagent-repl
@@ -158,6 +158,18 @@ echo "Explain this error" | deepagent-repl
 ```
 
 Exit codes: `0` success, `1` error, `2` interrupted.
+
+## Troubleshooting
+
+### Shift+Enter not working (iTerm2)
+
+If Shift+Enter does nothing in iTerm2, you need to enable the kitty keyboard protocol:
+
+1. Open **iTerm2 → Settings → Profiles → Keys**
+2. Enable **"Report modifiers using CSI u"**
+3. Restart your terminal session
+
+This allows iTerm2 to send a distinguishable key sequence for Shift+Enter. Without it, Shift+Enter is identical to Enter at the terminal level. Alt+Enter and Ctrl+J always work as alternatives.
 
 ## File Locations
 
