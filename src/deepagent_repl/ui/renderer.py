@@ -12,6 +12,65 @@ from deepagent_repl.ui.markdown import render_markdown
 
 console = Console()
 
+# ASCII art logo — compact pixel-art style agent face
+_LOGO_LINES = [
+    "    (  )   (   )  )",
+    "     ) (   )  (  (",
+    "     ( )  (    ) )",
+    "     _____________",
+    "    <_____________> ___",
+    "    |             |/ _ \\",
+    "    |               | | |",
+    "    |               |_| |",
+    " ___|             |\\___/",
+    "/    \\___________/    \\",
+    "\\_____________________/",
+]
+
+
+def render_header(
+    graph_id: str | None = None,
+    server_url: str | None = None,
+    thread_id: str | None = None,
+    num_skills: int = 0,
+) -> None:
+    """Render a styled startup header with logo and connection info."""
+    # Build info lines to place next to logo
+    info_lines: list[tuple[str, str]] = []
+
+    # Line 1: graph name (bold)
+    info_lines.append(("bold white", graph_id or "deepagent"))
+
+    # Line 2: server URL
+    if server_url:
+        info_lines.append(("dim", server_url))
+
+    # Line 3: thread + skills count
+    meta_parts = []
+    if thread_id:
+        tid_short = thread_id[:12] + "…" if len(thread_id) > 12 else thread_id
+        meta_parts.append(f"thread {tid_short}")
+    if num_skills > 0:
+        meta_parts.append(f"{num_skills} skill{'s' if num_skills != 1 else ''}")
+    if meta_parts:
+        info_lines.append(("dim cyan", " · ".join(meta_parts)))
+
+    # Vertically center info next to logo
+    pad_top = max(0, (len(_LOGO_LINES) - len(info_lines)) // 2)
+
+    console.print()
+    for i, logo_line in enumerate(_LOGO_LINES):
+        row = Text()
+        row.append(logo_line, style="bold cyan")
+        row.append("  ", style="")  # gap between logo and info
+
+        info_idx = i - pad_top
+        if 0 <= info_idx < len(info_lines):
+            style, text = info_lines[info_idx]
+            row.append(text, style=style)
+
+        console.print(row)
+
 
 class StreamingRenderer:
     """Manages live-updating display during streaming responses.
@@ -65,6 +124,12 @@ class StreamingRenderer:
     @property
     def has_content(self) -> bool:
         return self._has_content
+
+
+def render_user_message(text: str) -> None:
+    """Visually separate the user's turn from the agent's response."""
+    if not text.strip():
+        return
 
 
 def render_assistant_text(text: str) -> None:
@@ -208,6 +273,11 @@ def render_image(path: str) -> None:
 def render_error(message: str) -> None:
     """Render an error message."""
     console.print(Text(f"Error: {message}", style="bold red"))
+
+
+def render_shortcut_hint() -> None:
+    """Render a hint below the header."""
+    console.print(Text("  /help for available commands", style="dim"))
 
 
 def render_info(message: str) -> None:
