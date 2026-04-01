@@ -41,10 +41,13 @@ from deepagent_repl.ui.renderer import (
     console,
     render_assistant_text,
     render_error,
+    render_header,
     render_info,
     render_interrupt,
+    render_shortcut_hint,
     render_tool_call,
     render_tool_result,
+    render_user_message,
 )
 from deepagent_repl.ui.toolbar import create_toolbar
 
@@ -299,6 +302,15 @@ async def handle_stream(
 
     user_input can be a plain string or a multimodal content list (for images).
     """
+    # Echo user message with distinct styling
+    if isinstance(user_input, str):
+        render_user_message(user_input)
+    else:
+        # Multimodal — extract text parts for echo
+        text_parts = [c.get("text", "") for c in user_input if isinstance(c, dict) and c.get("type") == "text"]
+        if text_parts:
+            render_user_message("\n".join(text_parts))
+
     session.status = "streaming"
     session.messages.append({"role": "user", "content": user_input})
     state = StreamState()
@@ -425,20 +437,23 @@ async def run() -> None:
     prompt_session = create_prompt_session(bottom_toolbar=toolbar)
     session.prompt_session = prompt_session
 
-    console.print()
-    render_info("deepagent-repl v0.1.0")
     render_info(f"Connecting to {settings.langgraph_url}...")
 
     if not await connect(client, session):
         sys.exit(1)
 
-    render_info(f"Connected to graph: {session.graph_id}")
-    render_info(f"Thread: {session.thread_id}")
-
     # Discover skills from the server (non-blocking, best-effort)
     await discover_and_register_skills(client, session)
 
-    render_info("Type your message. Ctrl+D to exit.\n")
+    render_header(
+        graph_id=session.graph_id,
+        server_url=settings.langgraph_url,
+        thread_id=session.thread_id,
+        num_skills=len(session.discovered_tools),
+    )
+    console.print()
+    render_shortcut_hint()
+    console.print()
 
     while True:
         try:
