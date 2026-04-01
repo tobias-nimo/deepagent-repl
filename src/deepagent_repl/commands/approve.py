@@ -1,4 +1,4 @@
-"""The /approve command — manage approval rules for tool calls."""
+"""The /rules command — manage approval rules for tool calls."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from deepagent_repl.storage.rules import (
 from deepagent_repl.ui.renderer import console, render_error, render_info
 
 
-@command("approve", "Manage tool approval rules: /approve [allow|ask|deny|remove] [tool]")
-async def cmd_approve(client, session, args: str) -> None:
+@command("rules", "Manage tool approval rules: /rules [allow|ask|deny|remove] [tool]")
+async def cmd_rules(client, session, args: str) -> None:
     parts = args.strip().split(None, 1)
 
     # No args: show current rules
@@ -30,7 +30,7 @@ async def cmd_approve(client, session, args: str) -> None:
 
     if action == "remove":
         if not tool_name:
-            render_error("Usage: /approve remove <tool_name>")
+            render_error("Usage: /rules remove <tool_name>")
             return
         if remove_rule(tool_name):
             render_info(f"Removed rule for '{tool_name}'.")
@@ -43,7 +43,7 @@ async def cmd_approve(client, session, args: str) -> None:
         return
 
     if not tool_name:
-        render_error(f"Usage: /approve {action} <tool_name>")
+        render_error(f"Usage: /rules {action} <tool_name>")
         return
 
     add_rule(action, tool_name)
@@ -59,12 +59,12 @@ def _show_rules() -> None:
         render_info("No approval rules configured.")
         render_info("")
         render_info("Usage:")
-        render_info("  /approve allow <tool>   Auto-approve this tool")
-        render_info("  /approve ask <tool>     Always prompt for this tool")
-        render_info("  /approve deny <tool>    Auto-reject this tool")
-        render_info("  /approve remove <tool>  Remove rule for this tool")
+        render_info("  /rules allow <tool>   Auto-approve this tool")
+        render_info("  /rules ask <tool>     Always prompt for this tool")
+        render_info("  /rules deny <tool>    Auto-reject this tool")
+        render_info("  /rules remove <tool>  Remove rule for this tool")
         render_info("")
-        render_info("Supports wildcards: /approve allow edit_*")
+        render_info("Supports wildcards: /rules allow edit_*")
         return
 
     table = Table(show_header=True, header_style="bold", expand=False, padding=(0, 1))

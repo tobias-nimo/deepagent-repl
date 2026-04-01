@@ -57,11 +57,11 @@ All commands start with `/` and support **tab completion**.
 | `/skills` | List discovered skills from the connected agent |
 | `/skills refresh` | Re-fetch skills from thread state |
 | `/<skill-name> [question]` | Invoke a skill — the agent reads its SKILL.md and follows the instructions |
-| `/approve allow <tool>` | Auto-approve a tool (supports wildcards: `edit_*`) |
-| `/approve deny <tool>` | Auto-reject a tool |
-| `/approve ask <tool>` | Always prompt for a tool |
-| `/approve remove <tool>` | Remove a rule |
-| `/approve` | Show current approval rules |
+| `/rules allow <tool>` | Auto-approve a tool (supports wildcards: `edit_*`) |
+| `/rules deny <tool>` | Auto-reject a tool |
+| `/rules ask <tool>` | Always prompt for a tool |
+| `/rules remove <tool>` | Remove a rule |
+| `/rules` | Show current approval rules |
 
 ### Media & Visualization
 
