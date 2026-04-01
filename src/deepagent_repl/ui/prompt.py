@@ -95,7 +95,7 @@ def create_prompt_session(bottom_toolbar=None) -> PromptSession:
     HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 
     return PromptSession(
-        message=HTML("<b>> </b>"),
+        message=HTML("<b>❯ </b>"),
         multiline=True,
         prompt_continuation=_get_continuation,
         key_bindings=_create_key_bindings(),
