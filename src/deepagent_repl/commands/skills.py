@@ -36,11 +36,8 @@ async def cmd_skills(client, session, args: str) -> None:
             render_info(f"Could not fetch skills: {e}")
         return
 
-    # Combine dynamic commands (from server metadata) and discovered tools
+    # Show only registered skill commands (not general tools)
     skills = dict(dynamic_commands())
-    for name, desc in session.discovered_tools.items():
-        if name not in skills:
-            skills[name] = desc
 
     if not skills:
         render_info("No skills discovered yet.")
