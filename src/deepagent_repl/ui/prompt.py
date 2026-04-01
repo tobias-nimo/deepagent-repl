@@ -119,6 +119,7 @@ async def read_input(
     if prompt_text is not None:
         kwargs["message"] = HTML(f"<b>{prompt_text} </b>")
         kwargs["multiline"] = False
+
     try:
         return await session.prompt_async(**kwargs)
     except EOFError:

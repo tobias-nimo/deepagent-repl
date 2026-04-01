@@ -70,6 +70,7 @@ class StreamingRenderer:
 def render_assistant_text(text: str) -> None:
     """Render assistant response text as formatted markdown."""
     if text.strip():
+        console.print()  # spacing before response
         console.print(render_markdown(text))
 
 
