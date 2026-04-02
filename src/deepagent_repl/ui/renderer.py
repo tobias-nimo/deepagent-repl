@@ -14,11 +14,10 @@ console = Console()
 
 # ASCII art logo — compact pixel-art style agent face
 _LOGO_LINES = [
-    "    (  )   (   )  )",
     "     ) (   )  (  (",
     "     ( )  (    ) )",
     "     _____________",
-    "    <_____________> ___",
+    "    (_____________) ___",
     "    |             |/ _ \\",
     "    |               | | |",
     "    |               |_| |",
