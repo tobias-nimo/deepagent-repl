@@ -224,7 +224,7 @@ async def _prompt_interrupt(
 
     while True:
         try:
-            raw = await read_input(prompt_session, prompt_text="choice> ")
+            raw = await read_input(prompt_session, prompt_text="❯")
         except KeyboardInterrupt:
             # Treat Ctrl+C as reject
             return "reject", None
