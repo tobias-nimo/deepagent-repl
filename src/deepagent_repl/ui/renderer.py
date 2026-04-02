@@ -207,13 +207,33 @@ def render_tool_result(result: FormattedToolResult) -> None:
 
 def render_interrupt(interrupt: InterruptInfo) -> None:
     """Render a pending interrupt that requires user action."""
+    from rich.console import Group
+
     console.print()
 
-    # Description
+    # Build panel content: tool name + condensed arg lines
     desc = interrupt.description or "Action required"
+    items: list[Text] = [Text(desc, style="bold")]
+
+    # Extract args from raw value (HITL middleware format)
+    args_dict: dict = {}
+    if isinstance(interrupt.value, dict):
+        for ar in interrupt.value.get("action_requests", []):
+            if isinstance(ar.get("args"), dict):
+                args_dict.update(ar["args"])
+        # Generic format: {"type": "approve", "args": {...}}
+        if not args_dict and isinstance(interrupt.value.get("args"), dict):
+            args_dict = interrupt.value["args"]
+
+    for key, val in args_dict.items():
+        val_str = str(val)
+        if len(val_str) > 60:
+            val_str = val_str[:57] + "..."
+        items.append(Text(f"+ {key}  {val_str}", style="dim"))
+
     console.print(
         Panel(
-            Text(desc, style="bold"),
+            Group(*items),
             title=Text(" Interrupt ", style="bold yellow"),
             title_align="left",
             border_style="yellow",
@@ -222,27 +242,19 @@ def render_interrupt(interrupt: InterruptInfo) -> None:
         )
     )
 
-    # Detail (diff, content, etc.)
-    if interrupt.detail:
-        detail_text = interrupt.detail
-        if len(detail_text) > 2000:
-            detail_text = detail_text[:2000] + "\n... (truncated)"
-        console.print(
-            Panel(
-                render_markdown(f"```\n{detail_text}\n```"),
-                border_style="dim",
-                padding=(0, 1),
-                expand=True,
-            )
-        )
-
-    # Numbered options
-    console.print()
+    # Options on a single line
+    parts: list[Text] = []
     for i, option in enumerate(interrupt.options, 1):
         style = "bold green" if option in ("approve", "accept", "yes") else (
             "bold red" if option in ("reject", "deny", "no") else "bold cyan"
         )
-        console.print(Text(f"  [{i}] {option}", style=style))
+        parts.append(Text(f"[{i}] {option}", style=style))
+    line = Text("  ")
+    for j, part in enumerate(parts):
+        if j:
+            line.append("  ")
+        line.append_text(part)
+    console.print(line)
     console.print()
 
 
