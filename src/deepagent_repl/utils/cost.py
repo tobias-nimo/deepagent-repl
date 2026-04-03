@@ -5,20 +5,20 @@ from __future__ import annotations
 # Pricing per 1M tokens (input, output) in USD
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Claude 4.5 / 4.6 family
-    "claude-opus-4-6": (15.0, 75.0),
+    "claude-opus-4-6": (5.0, 25.0),
     "claude-sonnet-4-6": (3.0, 15.0),
-    "claude-haiku-4-5": (0.80, 4.0),
-    # Claude 3.5 family
-    "claude-3-5-sonnet": (3.0, 15.0),
-    "claude-3-5-haiku": (0.80, 4.0),
-    # Claude 3 family
-    "claude-3-opus": (15.0, 75.0),
-    "claude-3-sonnet": (3.0, 15.0),
-    "claude-3-haiku": (0.25, 1.25),
+    "claude-haiku-4-5": (1.0, 5.0),
+    # GPT 5 family
+    "gpt-5.4-2026-03-05": (2.5, 15.0),
+    "gpt-5.4-mini-2026-03-17": (0.75, 4.5),
+    "gpt-5.4-nano-2026-03-17": (0.2, 1.25),
+    # GPT OSS family
+    "openai/gpt-oss-120b": (0.075, 0.30),
+    "openai/gpt-oss-20b":  (0.15, 0.60),
 }
 
 # Default pricing if model is unknown
-DEFAULT_PRICING = (3.0, 15.0)
+DEFAULT_PRICING = (0.0, 0.0)
 
 
 def compute_cost(input_tokens: int, output_tokens: int, model: str | None = None) -> float:
