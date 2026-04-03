@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import difflib
+
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
@@ -205,23 +207,78 @@ def render_tool_result(result: FormattedToolResult) -> None:
             render_image(img_path)
 
 
-def render_interrupt(interrupt: InterruptInfo) -> None:
-    """Render a pending interrupt that requires user action."""
-    from rich.console import Group
-
-    console.print()
-
-    # Build panel content: tool name + condensed arg lines
-    desc = interrupt.description or "Action required"
-    items: list[Text] = [Text(desc, style="bold")]
-
-    # Extract args from raw value (HITL middleware format)
+def _render_edit_file_panel(interrupt: InterruptInfo) -> None:
+    """Render an edit_file interrupt as a coloured diff view."""
     args_dict: dict = {}
     if isinstance(interrupt.value, dict):
         for ar in interrupt.value.get("action_requests", []):
             if isinstance(ar.get("args"), dict):
                 args_dict.update(ar["args"])
-        # Generic format: {"type": "approve", "args": {...}}
+
+    file_path = args_dict.get("file_path", "")
+    old_string = str(args_dict.get("old_string", ""))
+    new_string = str(args_dict.get("new_string", ""))
+    replace_all = args_dict.get("replace_all", False)
+
+    body = Text()
+    if file_path:
+        body.append(f"{file_path}\n", style="bold")
+    if replace_all:
+        body.append("replace_all: True\n", style="dim yellow")
+
+    old_lines = old_string.splitlines(keepends=True)
+    new_lines = new_string.splitlines(keepends=True)
+    diff = list(difflib.unified_diff(old_lines, new_lines, lineterm=""))
+
+    if diff:
+        body.append("\n")
+        for line in diff[2:]:  # skip --- +++ headers
+            if not line.endswith("\n"):
+                line = line + "\n"
+            if line.startswith("+"):
+                body.append(line, style="green")
+            elif line.startswith("-"):
+                body.append(line, style="red")
+            elif line.startswith("@@"):
+                body.append(line, style="dim cyan")
+            else:
+                body.append(line, style="dim")
+    else:
+        # Fallback: no diff (e.g. identical strings)
+        body.append(new_string, style="dim")
+
+    console.print(
+        Panel(
+            body,
+            title=Text(" edit_file ", style="bold yellow"),
+            title_align="left",
+            border_style="yellow",
+            padding=(0, 1),
+            expand=False,
+        )
+    )
+
+
+def render_interrupt_panel(interrupt: InterruptInfo) -> None:
+    """Render the interrupt panel only (no options line).
+
+    Dispatches to a tool-specific renderer when available.
+    """
+    console.print()
+
+    if interrupt.description == "edit_file":
+        _render_edit_file_panel(interrupt)
+        return
+
+    # Generic panel: tool name + condensed arg lines
+    desc = interrupt.description or "Action required"
+    items: list[Text] = [Text(desc, style="bold")]
+
+    args_dict: dict = {}
+    if isinstance(interrupt.value, dict):
+        for ar in interrupt.value.get("action_requests", []):
+            if isinstance(ar.get("args"), dict):
+                args_dict.update(ar["args"])
         if not args_dict and isinstance(interrupt.value.get("args"), dict):
             args_dict = interrupt.value["args"]
 
@@ -241,6 +298,14 @@ def render_interrupt(interrupt: InterruptInfo) -> None:
             expand=False,
         )
     )
+
+
+def render_interrupt(interrupt: InterruptInfo) -> None:
+    """Render a pending interrupt with panel + static options line.
+
+    Used for non-interactive (piped) contexts.
+    """
+    render_interrupt_panel(interrupt)
 
     # Options on a single line
     parts: list[Text] = []

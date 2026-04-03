@@ -44,6 +44,7 @@ from deepagent_repl.ui.renderer import (
     render_header,
     render_info,
     render_interrupt,
+    render_interrupt_panel,
     render_shortcut_hint,
     render_tool_call,
     render_tool_result,
@@ -213,20 +214,106 @@ async def _consume_stream(stream, state: StreamState, renderer: StreamingRendere
             renderer.start()
 
 
+async def _select_option_interactive(options: list[str]) -> str | None:
+    """Inline arrow-key option selector using a prompt_toolkit Application.
+
+    Returns the selected option string, or None if the user cancelled (Ctrl+C).
+    """
+    from prompt_toolkit import Application
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout import Layout
+    from prompt_toolkit.layout.containers import Window
+    from prompt_toolkit.layout.controls import FormattedTextControl
+
+    selected = [0]
+
+    kb = KeyBindings()
+
+    @kb.add("up")
+    @kb.add("c-p")
+    def _up(event):
+        selected[0] = (selected[0] - 1) % len(options)
+        event.app.invalidate()
+
+    @kb.add("down")
+    @kb.add("c-n")
+    def _down(event):
+        selected[0] = (selected[0] + 1) % len(options)
+        event.app.invalidate()
+
+    @kb.add("enter")
+    def _enter(event):
+        event.app.exit()
+
+    @kb.add("c-c")
+    def _cancel(event):
+        selected[0] = -1
+        event.app.exit()
+
+    def get_tokens():
+        tokens = []
+        for i, opt in enumerate(options):
+            if i == selected[0]:
+                if opt in ("approve", "accept", "yes"):
+                    style = "bold fg:ansigreen"
+                elif opt in ("reject", "deny", "no"):
+                    style = "bold fg:ansired"
+                else:
+                    style = "bold fg:ansicyan"
+                tokens.append((style, f"  ❯ {opt}"))
+            else:
+                tokens.append(("fg:ansibrightblack", f"    {opt}"))
+            tokens.append(("", "\n"))
+        return tokens
+
+    app = Application(
+        layout=Layout(Window(FormattedTextControl(get_tokens))),
+        key_bindings=kb,
+        full_screen=False,
+        mouse_support=False,
+    )
+    await app.run_async()
+
+    if selected[0] == -1:
+        return None
+    return options[selected[0]]
+
+
 async def _prompt_interrupt(
     interrupt: InterruptInfo, prompt_session,
 ) -> tuple[str, str | None]:
     """Display an interrupt and get the user's choice.
 
     Returns (chosen_option, edited_content_or_None).
+    Uses an arrow-key selector in interactive TTY sessions,
+    or falls back to number/name text input otherwise.
     """
+    is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
+
+    if is_interactive:
+        render_interrupt_panel(interrupt)
+        while True:
+            chosen = await _select_option_interactive(interrupt.options)
+            if chosen is None:
+                return "reject", None
+
+            edited_content = None
+            if chosen.lower() in ("edit", "modify"):
+                content = interrupt.detail or ""
+                edited_content = open_in_editor(content)
+                if edited_content is None:
+                    render_info("Edit cancelled.")
+                    continue
+
+            return chosen, edited_content
+
+    # Non-interactive fallback: static options + text input
     render_interrupt(interrupt)
 
     while True:
         try:
             raw = await read_input(prompt_session, prompt_text="❯")
         except KeyboardInterrupt:
-            # Treat Ctrl+C as reject
             return "reject", None
 
         if raw is None:
@@ -236,7 +323,6 @@ async def _prompt_interrupt(
         if not raw:
             continue
 
-        # Accept number or option name
         try:
             idx = int(raw) - 1
             if 0 <= idx < len(interrupt.options):
@@ -245,7 +331,6 @@ async def _prompt_interrupt(
                 render_error(f"Choose 1-{len(interrupt.options)}")
                 continue
         except ValueError:
-            # Try matching option name directly
             lower = raw.lower()
             matched = [o for o in interrupt.options if o.lower().startswith(lower)]
             if len(matched) == 1:
@@ -254,7 +339,6 @@ async def _prompt_interrupt(
                 render_error(f"Choose 1-{len(interrupt.options)} or type option name")
                 continue
 
-        # Handle "edit" option — open in $EDITOR
         edited_content = None
         if chosen.lower() in ("edit", "modify"):
             content = interrupt.detail or ""
