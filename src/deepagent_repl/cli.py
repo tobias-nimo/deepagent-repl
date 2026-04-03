@@ -425,6 +425,7 @@ async def handle_stream(
                 break
 
             # Handle each interrupt (typically just one)
+            rejected = False
             for interrupt in interrupts:
                 session.status = "interrupted"
 
@@ -435,6 +436,9 @@ async def handle_stream(
                     render_info(f"Auto-{chosen} by approval rule.")
                 else:
                     chosen, edited = await _prompt_interrupt(interrupt, prompt_session)
+
+                if chosen.lower() in ("reject", "deny", "no"):
+                    rejected = True
 
                 resume_value = build_resume_value(interrupt, chosen, edited)
                 render_info(f"Resuming with: {chosen}")
@@ -454,6 +458,13 @@ async def handle_stream(
                 final_text = renderer.finish()
                 if final_text.strip():
                     render_assistant_text(final_text)
+
+                if rejected:
+                    render_info("Interrupted · What should the agent do instead?")
+                    break
+
+            if rejected:
+                break
 
     except Exception as e:
         renderer.finish()
