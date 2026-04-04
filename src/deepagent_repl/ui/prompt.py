@@ -106,6 +106,64 @@ def create_prompt_session(bottom_toolbar=None) -> PromptSession:
     )
 
 
+async def select_option_interactive(options: list[str]) -> str | None:
+    """Inline arrow-key option selector using a prompt_toolkit Application.
+
+    Returns the selected option string, or None if the user cancelled (Ctrl+C).
+    """
+    from prompt_toolkit import Application
+    from prompt_toolkit.layout import Layout
+    from prompt_toolkit.layout.containers import Window
+    from prompt_toolkit.layout.controls import FormattedTextControl
+
+    selected = [0]
+
+    kb = KeyBindings()
+
+    @kb.add("up")
+    @kb.add("c-p")
+    def _up(event):
+        selected[0] = (selected[0] - 1) % len(options)
+        event.app.invalidate()
+
+    @kb.add("down")
+    @kb.add("c-n")
+    def _down(event):
+        selected[0] = (selected[0] + 1) % len(options)
+        event.app.invalidate()
+
+    @kb.add("enter")
+    def _enter(event):
+        event.app.exit()
+
+    @kb.add("c-c")
+    def _cancel(event):
+        selected[0] = -1
+        event.app.exit()
+
+    def get_tokens():
+        tokens = []
+        for i, opt in enumerate(options):
+            if i == selected[0]:
+                tokens.append(("bold fg:ansicyan", f"  ❯ {opt}"))
+            else:
+                tokens.append(("fg:ansibrightblack", f"    {opt}"))
+            tokens.append(("", "\n"))
+        return tokens
+
+    app = Application(
+        layout=Layout(Window(FormattedTextControl(get_tokens))),
+        key_bindings=kb,
+        full_screen=False,
+        mouse_support=False,
+    )
+    await app.run_async()
+
+    if selected[0] == -1:
+        return None
+    return options[selected[0]]
+
+
 async def read_input(
     session: PromptSession,
     prompt_text: str | None = None,

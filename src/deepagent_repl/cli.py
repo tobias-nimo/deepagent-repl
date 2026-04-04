@@ -215,18 +215,14 @@ async def _consume_stream(stream, state: StreamState, renderer: StreamingRendere
 
 
 async def _select_option_interactive(options: list[str]) -> str | None:
-    """Inline arrow-key option selector using a prompt_toolkit Application.
-
-    Returns the selected option string, or None if the user cancelled (Ctrl+C).
-    """
+    """Interrupt-aware wrapper: colours approve/reject options appropriately."""
     from prompt_toolkit import Application
-    from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.layout.containers import Window
     from prompt_toolkit.layout.controls import FormattedTextControl
+    from prompt_toolkit.key_binding import KeyBindings
 
     selected = [0]
-
     kb = KeyBindings()
 
     @kb.add("up")
