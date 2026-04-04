@@ -20,6 +20,7 @@ class Session:
     prompt_session: Any = None  # PromptSession instance (set during startup)
     discovered_tools: dict[str, str] = field(default_factory=dict)  # name -> description
     discovered_skills_from_state: bool = False  # True once skills_metadata fetched from thread
+    workspace_root: str | None = None  # derived from skill paths on first skills load
 
     def add_usage(self, input_tokens: int, output_tokens: int) -> None:
         """Accumulate token usage and recompute cost."""

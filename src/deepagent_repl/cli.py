@@ -484,6 +484,14 @@ async def handle_stream(
                         if name:
                             session.discovered_tools[name] = desc
                             _register_skill_command(name, desc, path)
+                            # Derive workspace root from first skill path:
+                            # path looks like <root>/.claude/skills/<name>/SKILL.md
+                            if not session.workspace_root and path:
+                                from pathlib import Path as _Path
+                                try:
+                                    session.workspace_root = str(_Path(path).parents[3])
+                                except IndexError:
+                                    pass
             except Exception:
                 pass
 
