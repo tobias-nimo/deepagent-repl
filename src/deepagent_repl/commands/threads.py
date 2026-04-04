@@ -12,32 +12,29 @@ from deepagent_repl.ui.renderer import console, render_info
 
 @command("threads", "List saved conversation threads")
 async def cmd_threads(client, session, args: str) -> None:
-    threads = await list_threads()
+    threads = await list_threads(limit=10)
     if not threads:
         render_info("No saved threads.")
         return
 
     table = Table(show_header=True, header_style="bold", expand=False, padding=(0, 1))
-    table.add_column("#", style="dim", width=3)
-    table.add_column("Thread ID", width=12)
-    table.add_column("Graph", width=16)
-    table.add_column("Messages", justify="right", width=8)
-    table.add_column("Last Message", max_width=40)
-    table.add_column("Updated", width=19)
+    table.add_column("Thread ID", width=16, no_wrap=True)
+    table.add_column("Graph", width=16, no_wrap=True)
+    table.add_column("Msgs", justify="right", width=4, no_wrap=True)
+    table.add_column("Last Message", width=36, no_wrap=True)
+    table.add_column("Updated", width=19, no_wrap=True)
 
-    for i, t in enumerate(threads, 1):
+    for t in threads:
         is_current = t["id"] == session.thread_id
-        tid_display = t["id"][:12] + "..."
-        if is_current:
-            tid_display = f"* {tid_display}"
+        tid_short = t["id"][:12] + "…"
+        tid_display = f"* {tid_short}" if is_current else f"  {tid_short}"
 
-        last_msg = t["last_message"]
-        if len(last_msg) > 40:
-            last_msg = last_msg[:37] + "..."
+        last_msg = t["last_message"] or ""
+        if len(last_msg) > 35:
+            last_msg = last_msg[:34] + "…"
 
         style = "bold green" if is_current else ""
         table.add_row(
-            str(i),
             Text(tid_display, style=style),
             t["graph_id"],
             str(t["message_count"]),
