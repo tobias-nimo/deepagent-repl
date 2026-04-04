@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from rich.table import Table
 
+import deepagent_repl.ui.theme as _theme
 from deepagent_repl.commands import command, dynamic_commands
 from deepagent_repl.ui.renderer import console, render_info
 
@@ -45,7 +46,7 @@ async def cmd_skills(client, session, args: str) -> None:
         return
 
     table = Table(show_header=True, header_style="bold", expand=False, padding=(0, 1))
-    table.add_column("Skill", style="bold cyan", min_width=20)
+    table.add_column("Skill", style=f"bold {_theme.ACCENT_COLOR}", min_width=20)
     table.add_column("Description", style="dim")
 
     for name, desc in sorted(skills.items()):

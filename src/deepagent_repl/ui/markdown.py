@@ -4,16 +4,13 @@ import re
 
 from rich.markdown import Markdown
 
-from deepagent_repl.ui.theme import SYNTAX_THEME
-
-
 def render_markdown(text: str) -> Markdown:
     """Convert a markdown string to a Rich Markdown renderable.
 
     Pre-processes the text to handle edge cases before Rich rendering.
     """
     processed = _preprocess(text)
-    return Markdown(processed, code_theme=SYNTAX_THEME)
+    return Markdown(processed, code_theme="monokai")
 
 
 def _preprocess(text: str) -> str:

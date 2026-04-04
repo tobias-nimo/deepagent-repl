@@ -8,6 +8,7 @@ from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.text import Text
 
+import deepagent_repl.ui.theme as _theme
 from deepagent_repl.handlers.interrupt import InterruptInfo
 from deepagent_repl.handlers.tools import FormattedToolCall, FormattedToolResult
 from deepagent_repl.ui.markdown import render_markdown
@@ -54,7 +55,7 @@ def render_header(
     if num_skills > 0:
         meta_parts.append(f"{num_skills} skill{'s' if num_skills != 1 else ''}")
     if meta_parts:
-        info_lines.append(("dim cyan", " · ".join(meta_parts)))
+        info_lines.append((f"dim {_theme.ACCENT_COLOR}", " · ".join(meta_parts)))
 
     # Vertically center info next to logo
     pad_top = max(0, (len(_LOGO_LINES) - len(info_lines)) // 2)
@@ -62,7 +63,7 @@ def render_header(
     console.print()
     for i, logo_line in enumerate(_LOGO_LINES):
         row = Text()
-        row.append(logo_line, style="bold cyan")
+        row.append(logo_line, style=f"bold {_theme.ACCENT_COLOR}")
         row.append("  ", style="")  # gap between logo and info
 
         info_idx = i - pad_top
@@ -150,8 +151,8 @@ def render_tool_call(tc: FormattedToolCall) -> None:
     else:
         title = tc.name
         body = _format_args(tc.args)
-        style = "cyan"
-        border_style = "dim cyan"
+        style = _theme.ACCENT_COLOR
+        border_style = f"dim {_theme.ACCENT_COLOR}"
 
     if body:
         panel = Panel(
@@ -240,7 +241,7 @@ def _render_edit_file_panel(interrupt: InterruptInfo) -> None:
             elif line.startswith("-"):
                 body.append(line, style="red")
             elif line.startswith("@@"):
-                body.append(line, style="dim cyan")
+                body.append(line, style=f"dim {_theme.ACCENT_COLOR}")
             else:
                 body.append(line, style="dim")
     else:
@@ -311,7 +312,7 @@ def render_interrupt(interrupt: InterruptInfo) -> None:
     parts: list[Text] = []
     for i, option in enumerate(interrupt.options, 1):
         style = "bold green" if option in ("approve", "accept", "yes") else (
-            "bold red" if option in ("reject", "deny", "no") else "bold cyan"
+            "bold red" if option in ("reject", "deny", "no") else f"bold {_theme.ACCENT_COLOR}"
         )
         parts.append(Text(f"[{i}] {option}", style=style))
     line = Text("  ")

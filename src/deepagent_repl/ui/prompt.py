@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import deepagent_repl.ui.theme as _theme
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
@@ -145,7 +146,7 @@ async def select_option_interactive(options: list[str]) -> str | None:
         tokens = []
         for i, opt in enumerate(options):
             if i == selected[0]:
-                tokens.append(("bold fg:ansicyan", f"  ❯ {opt}"))
+                tokens.append((f"bold {_theme.accent_ptk()}", f"  ❯ {opt}"))
             else:
                 tokens.append(("fg:ansibrightblack", f"    {opt}"))
             tokens.append(("", "\n"))

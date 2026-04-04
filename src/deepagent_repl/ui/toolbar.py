@@ -6,15 +6,10 @@ from typing import TYPE_CHECKING
 
 from prompt_toolkit.formatted_text import HTML
 
+import deepagent_repl.ui.theme as _theme
+
 if TYPE_CHECKING:
     from deepagent_repl.session import Session
-
-# Status indicator styles
-_STATUS_STYLE: dict[str, tuple[str, str]] = {
-    "idle": ("", "idle"),
-    "streaming": ("ansicyan", "streaming..."),
-    "interrupted": ("ansiyellow", "waiting for approval"),
-}
 
 
 def create_toolbar(session: "Session"):
@@ -28,7 +23,12 @@ def create_toolbar(session: "Session"):
         left = f" {graph} │ {tid_short}"
 
         # Center: status
-        style, label = _STATUS_STYLE.get(session.status, ("", session.status))
+        _status_map: dict[str, tuple[str, str]] = {
+            "idle": ("", "idle"),
+            "streaming": (_theme.accent_ptk().replace("fg:", ""), "streaming..."),
+            "interrupted": ("ansiyellow", "waiting for approval"),
+        }
+        style, label = _status_map.get(session.status, ("", session.status))
         if style:
             center = f"<{style}>{label}</{style}>"
         else:

@@ -6,6 +6,7 @@ import sys
 
 from rich.table import Table
 
+import deepagent_repl.ui.theme as _theme
 from deepagent_repl.commands import builtin_commands, command, dynamic_commands
 from deepagent_repl.ui.renderer import console, render_info
 
@@ -16,7 +17,7 @@ async def cmd_help(client, session, args: str) -> None:
     dynamics = dynamic_commands()
 
     table = Table(show_header=False, expand=False, padding=(0, 2))
-    table.add_column("Command", style="bold cyan", min_width=16)
+    table.add_column("Command", style=f"bold {_theme.ACCENT_COLOR}", min_width=16)
     table.add_column("Description", style="dim")
 
     for name, desc in sorted(builtins.items()):

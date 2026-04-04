@@ -15,7 +15,7 @@ import deepagent_repl.commands.new  # noqa: F401
 import deepagent_repl.commands.fork  # noqa: F401
 import deepagent_repl.commands.resume  # noqa: F401
 import deepagent_repl.commands.skills  # noqa: F401
-import deepagent_repl.commands.theme  # noqa: F401
+import deepagent_repl.commands.color  # noqa: F401
 import deepagent_repl.commands.threads  # noqa: F401
 from deepagent_repl.client import AgentClient
 from deepagent_repl.commands import clear_dynamic, is_command, register_skill
@@ -35,6 +35,7 @@ from deepagent_repl.handlers.stream import (
 from deepagent_repl.handlers.tools import format_tool_call, format_tool_result
 from deepagent_repl.session import Session
 from deepagent_repl.storage.db import upsert_thread
+import deepagent_repl.ui.theme as _theme
 from deepagent_repl.ui.prompt import create_prompt_session, read_input
 from deepagent_repl.ui.renderer import (
     StreamingRenderer,
@@ -255,7 +256,7 @@ async def _select_option_interactive(options: list[str]) -> str | None:
                 elif opt in ("reject", "deny", "no"):
                     style = "bold fg:ansired"
                 else:
-                    style = "bold fg:ansicyan"
+                    style = f"bold {_theme.accent_ptk()}"
                 tokens.append((style, f"  ❯ {opt}"))
             else:
                 tokens.append(("fg:ansibrightblack", f"    {opt}"))
