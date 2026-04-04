@@ -12,7 +12,7 @@ import deepagent_repl.commands.export  # noqa: F401
 import deepagent_repl.commands.graph  # noqa: F401
 import deepagent_repl.commands.image  # noqa: F401
 import deepagent_repl.commands.new  # noqa: F401
-import deepagent_repl.commands.replay  # noqa: F401
+import deepagent_repl.commands.fork  # noqa: F401
 import deepagent_repl.commands.resume  # noqa: F401
 import deepagent_repl.commands.skills  # noqa: F401
 import deepagent_repl.commands.theme  # noqa: F401

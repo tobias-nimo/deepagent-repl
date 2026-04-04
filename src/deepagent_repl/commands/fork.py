@@ -1,13 +1,11 @@
-"""The /replay command — browse conversation history and fork from an earlier point."""
+"""The /fork command — browse conversation history and fork from an earlier point."""
 
 from __future__ import annotations
 
-from rich.table import Table
-
 from deepagent_repl.commands import command
 from deepagent_repl.storage.db import upsert_thread
-from deepagent_repl.ui.prompt import read_input
-from deepagent_repl.ui.renderer import console, render_error, render_info
+from deepagent_repl.ui.prompt import select_option_interactive
+from deepagent_repl.ui.renderer import render_error, render_info
 
 
 def _extract_text(content) -> str:
@@ -25,8 +23,8 @@ def _extract_text(content) -> str:
     return str(content)
 
 
-@command("replay", "Browse history and fork from an earlier message")
-async def cmd_replay(client, session, args: str) -> None:
+@command("fork", "Browse history and fork from an earlier message")
+async def cmd_fork(client, session, args: str) -> None:
     if not session.thread_id:
         render_error("No active thread.")
         return
@@ -36,7 +34,11 @@ async def cmd_replay(client, session, args: str) -> None:
     try:
         history = await client.get_thread_history(session.thread_id)
     except Exception as e:
-        render_error(f"Failed to fetch history: {e}")
+        msg = str(e)
+        if "no assigned graph ID" in msg or "graph_id" in msg.lower():
+            render_error("This thread has no history to fork from (no runs have been made yet).")
+        else:
+            render_error(f"Failed to fetch history: {e}")
         return
 
     if not history:
@@ -44,8 +46,6 @@ async def cmd_replay(client, session, args: str) -> None:
         return
 
     # Extract checkpoints that contain user messages.
-    # Each history entry is a state snapshot — we look for ones where the last
-    # message is from the user (these are the "before agent replied" checkpoints).
     user_checkpoints: list[tuple[int, str, dict]] = []
 
     for entry in history:
@@ -54,15 +54,11 @@ async def cmd_replay(client, session, args: str) -> None:
         if not messages:
             continue
 
-        # Find all user messages in this checkpoint
         for i, msg in enumerate(messages):
             role = msg.get("role") or msg.get("type", "")
             if role in ("user", "human"):
                 text = _extract_text(msg.get("content", ""))
                 if text.strip():
-                    # Use (message_index_in_thread, text, checkpoint_entry) as key
-                    # Deduplicate by message index
-                    key = len(messages) - 1 - (len(messages) - 1 - i)
                     already = any(uc[0] == i and uc[1] == text for uc in user_checkpoints)
                     if not already:
                         user_checkpoints.append((i, text, entry))
@@ -80,55 +76,36 @@ async def cmd_replay(client, session, args: str) -> None:
         render_info("No user messages found in history.")
         return
 
-    # Sort by message position in thread
+    # Sort by message position in thread, then keep last 10
     unique_checkpoints.sort(key=lambda x: x[0])
+    unique_checkpoints = unique_checkpoints[-10:]
 
-    # Display numbered list
-    table = Table(show_header=True, header_style="bold", expand=False, padding=(0, 1))
-    table.add_column("#", style="dim", width=4)
-    table.add_column("Message", max_width=70)
-
+    # Build display options for arrow-key selector
+    options = []
     for i, (idx, text, _entry) in enumerate(unique_checkpoints, 1):
         preview = text.replace("\n", " ").strip()
         if len(preview) > 70:
             preview = preview[:67] + "..."
-        table.add_row(str(i), preview)
+        options.append(f"#{i}  {preview}")
 
-    console.print()
-    console.print(table)
-    console.print()
-    render_info("Select a message to fork the conversation from that point.")
-    render_info("A new thread will be created with history up to that message.")
-
-    # Prompt for selection
-    raw = await read_input(session.prompt_session, prompt_text="fork from #>")
-    if not raw or not raw.strip():
+    render_info("Select a message to fork from (↑↓ to move, Enter to confirm, Ctrl+C to cancel):")
+    chosen = await select_option_interactive(options)
+    if chosen is None:
         render_info("Cancelled.")
         return
 
-    try:
-        choice = int(raw.strip()) - 1
-        if not (0 <= choice < len(unique_checkpoints)):
-            render_error(f"Choose 1-{len(unique_checkpoints)}")
-            return
-    except ValueError:
-        render_error("Enter a number.")
-        return
-
+    choice = options.index(chosen)
     idx, text, checkpoint_entry = unique_checkpoints[choice]
 
     render_info(f"Forking from message #{choice + 1}: {text[:60]}...")
 
     try:
-        # Get the messages up to and including the selected user message
         values = checkpoint_entry.get("values", {})
         messages = values.get("messages", [])
-        # Truncate messages to include up to the selected user message
         fork_messages = messages[: idx + 1]
 
         new_thread_id = await client.copy_thread_with_messages(fork_messages)
 
-        # Switch session
         session.thread_id = new_thread_id
         session.messages = []
         session.input_tokens = 0
@@ -142,4 +119,8 @@ async def cmd_replay(client, session, args: str) -> None:
         render_info("You can now continue the conversation from this point.")
 
     except Exception as e:
-        render_error(f"Fork failed: {e}")
+        msg = str(e)
+        if "no assigned graph ID" in msg or "graph_id" in msg.lower():
+            render_info("Fork failed: thread has no graph ID. Ensure at least one run has been made before forking.")
+        else:
+            render_error(f"Fork failed: {e}")
