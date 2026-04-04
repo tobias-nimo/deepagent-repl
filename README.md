@@ -2,6 +2,15 @@
 
 A rich terminal REPL for any [LangChain Deep Agent](https://github.com/langchain-ai/deepagents) server. Connect to any LangGraph server, stream responses with live markdown rendering, handle human-in-the-loop interrupts, manage threads, invoke skills, and more.
 
+## Features
+
+- Streaming & Rendering
+- Human-in-the-Loop (HITL)
+- Skills
+- Image support
+- Thread Management
+- Token & Cost Tracking
+
 ## Quick Start
 
 ```bash
@@ -49,7 +58,7 @@ All commands start with `/` and support **tab completion**.
 | `/resume [thread_id]` | Resume a past thread |
 | `/fork` | Browse message history and fork from an earlier point |
 | `/compress` | Summarize conversation to reduce token usage |
-| `/export [filename]` | Export conversation as markdown transcript |
+| `/export` | Export conversation as markdown transcript |
 | `/copy` | Copy conversation to clipboard |
 
 ### Tools & Skills
@@ -86,55 +95,6 @@ All commands start with `/` and support **tab completion**.
 
 > **Note on Shift+Enter**: Requires a terminal that supports the [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) (Kitty, Ghostty, iTerm2 with protocol enabled). Use Alt+Enter or Ctrl+J as universal alternatives.
 
-## Features
-
-### Streaming & Rendering
-
-- Token-by-token streaming with live markdown rendering
-- Syntax-highlighted code blocks, tables, bold, italic
-- Spinner while the agent is thinking
-- Tool calls displayed as styled panels with arguments
-- Tool results shown with green/red status indicators
-
-### Human-in-the-Loop (HITL)
-
-When the agent requests approval (e.g., before editing a file):
-
-- Interrupt panel shows description, detail (diffs, content), and numbered options
-- Respond by number (`1`, `2`) or name (`approve`, `reject`)
-- Choose `edit` to open content in `$EDITOR` before approving
-- **Approval rules** auto-resolve common interrupts without prompting
-
-### Skills
-
-Skills are agent capabilities defined as `SKILL.md` files on the server (via Deep Agents' [SkillsMiddleware](https://github.com/langchain-ai/deepagents)).
-
-- Auto-discovered from thread state after the first message
-- Registered as `/slash-commands` with tab completion
-- `/web-research how does quantum computing work` — reads the skill's instructions and follows them
-- `/skills refresh` to re-fetch after reconnecting
-
-### Image & Multimodal
-
-- Send images with `/image <path>` or just include a file path in your message
-- Auto-detects image paths and converts to multimodal content
-- Inline image rendering in iTerm2, Kitty, and WezTerm
-- Supports: PNG, JPG, GIF, BMP, WebP, SVG, TIFF, ICO
-
-### Thread Management
-
-- Conversations persist as threads on the server
-- Local SQLite index for quick browsing (`~/.deepagent-repl/threads.db`)
-- Fork from any point in history with `/replay`
-- `/compress` summarizes long conversations into a new compact thread
-
-### Token & Cost Tracking
-
-- Live token counter in the bottom toolbar
-- Automatic cost calculation for Claude models
-- Warning when approaching context limits (~80% of 200k)
-- `/status` for detailed breakdown
-
 ## One-Shot Mode
 
 Send a single message without entering the REPL:
@@ -152,8 +112,6 @@ deepagent-repl --json "List all tools"
 # Piped input
 echo "Explain this error" | deepagent-repl
 ```
-
-Exit codes: `0` success, `1` error, `2` interrupted.
 
 ## Troubleshooting
 
