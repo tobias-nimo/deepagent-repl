@@ -5,13 +5,13 @@ from __future__ import annotations
 import tempfile
 import webbrowser
 
-from rich.tree import Tree
+from rich.syntax import Syntax
 
 from deepagent_repl.commands import command
 from deepagent_repl.ui.renderer import console, render_error, render_info
 
 
-@command("graph", "Visualize the agent's execution graph: /graph [--browser]")
+@command("graph", "Show agent graph as Mermaid: /graph [--browser]")
 async def cmd_graph(client, session, args: str) -> None:
     if not session.graph_id:
         render_error("No graph connected.")
@@ -32,63 +32,15 @@ async def cmd_graph(client, session, args: str) -> None:
         render_info("Graph has no nodes.")
         return
 
-    # Build adjacency for tree display
-    node_map: dict[str, dict] = {}
-    for node in nodes:
-        if isinstance(node, dict):
-            nid = node.get("id", "")
-            node_map[nid] = node
+    mermaid = _to_mermaid(nodes, edges)
 
-    children: dict[str, list[str]] = {}
-    for edge in edges:
-        if isinstance(edge, dict):
-            src = edge.get("source", "")
-            tgt = edge.get("target", "")
-            if src:
-                children.setdefault(src, []).append(tgt)
-
-    # Terminal display: Rich Tree
+    # CLI: syntax-highlighted Mermaid code block
     console.print()
-    tree = Tree(f"[bold]{session.graph_id}[/bold]", guide_style="dim")
-    _build_tree(tree, "__start__", children, node_map, visited=set())
-    console.print(tree)
+    console.print(Syntax(mermaid, "text", theme="monokai", line_numbers=False, word_wrap=False))
     console.print()
-
     render_info(f"{len(nodes)} node(s), {len(edges)} edge(s)")
 
-    # Optional browser view with Mermaid
-    if "--browser" in args:
-        mermaid = _to_mermaid(nodes, edges)
-        _open_mermaid_browser(mermaid, session.graph_id)
-
-
-def _build_tree(
-    parent: Tree,
-    node_id: str,
-    children: dict[str, list[str]],
-    node_map: dict[str, dict],
-    visited: set[str],
-) -> None:
-    """Recursively build a Rich Tree from the graph adjacency."""
-    if node_id in visited:
-        parent.add(f"[dim]{node_id} (cycle)[/dim]")
-        return
-    visited.add(node_id)
-
-    for child_id in children.get(node_id, []):
-        node = node_map.get(child_id, {})
-        node_type = node.get("type", "")
-        label = child_id
-
-        if child_id == "__end__":
-            style = "bold red"
-        elif node_type == "tool":
-            style = "bold cyan"
-        else:
-            style = "bold green"
-
-        branch = parent.add(f"[{style}]{label}[/]")
-        _build_tree(branch, child_id, children, node_map, visited.copy())
+    _open_mermaid_browser(mermaid, session.graph_id)
 
 
 def _to_mermaid(nodes: list[dict], edges: list[dict]) -> str:
@@ -127,16 +79,52 @@ def _safe_id(s: str) -> str:
 
 _MERMAID_HTML = """\
 <!DOCTYPE html>
-<html><head>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
 <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<style>body {{ display: flex; justify-content: center; padding: 2rem; }}</style>
-</head><body>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    background: #1e1e2e;
+    color: #cdd6f4;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }}
+  h2 {{
+    margin-bottom: 2rem;
+    color: #89b4fa;
+    font-size: 1.2rem;
+    letter-spacing: 0.05em;
+  }}
+  .mermaid {{
+    background: #181825;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 100%;
+    overflow: auto;
+  }}
+</style>
+</head>
+<body>
 <h2>{title}</h2>
-<pre class="mermaid">
+<div class="mermaid">
 {mermaid}
-</pre>
-<script>mermaid.initialize({{startOnLoad: true}});</script>
-</body></html>
+</div>
+<script>
+  mermaid.initialize({{
+    startOnLoad: true,
+    theme: "dark",
+    themeVariables: {{ background: "#181825" }}
+  }});
+</script>
+</body>
+</html>
 """
 
 
