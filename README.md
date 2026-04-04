@@ -25,6 +25,7 @@ Set via environment variables or `.env` file:
 | `GRAPH_ID` | auto-discover | Specific graph/assistant to connect to |
 | `LANGSMITH_API_KEY` | — | API key for authenticated connections |
 | `THREAD_ID` | — | Resume a specific thread on startup |
+| `DEEPAGENT_COLOR` | `cyan` | Accent color (Rich color name or hex code, e.g., `#e86e48`) |
 
 ## Commands
 
@@ -45,10 +46,11 @@ All commands start with `/` and support **tab completion**.
 | Command | Description |
 |---------|-------------|
 | `/threads` | List saved conversation threads |
-| `/resume [thread_id]` | Resume a past thread (interactive picker if no ID given) |
-| `/replay` | Browse message history and fork from an earlier point |
+| `/resume [thread_id]` | Resume a past thread |
+| `/fork` | Browse message history and fork from an earlier point |
 | `/compress` | Summarize conversation to reduce token usage |
-| `/export [filename]` | Export conversation to markdown |
+| `/export [filename]` | Export conversation as markdown transcript |
+| `/copy` | Copy conversation to clipboard |
 
 ### Tools & Skills
 
@@ -56,7 +58,7 @@ All commands start with `/` and support **tab completion**.
 |---------|-------------|
 | `/skills` | List discovered skills from the connected agent |
 | `/skills refresh` | Re-fetch skills from thread state |
-| `/<skill-name> [question]` | Invoke a skill — the agent reads its SKILL.md and follows the instructions |
+| `/<skill-name> [question]` | Invoke a skill — the agent reads its SKILL.md to address the question |
 | `/rules allow <tool>` | Auto-approve a tool (supports wildcards: `edit_*`) |
 | `/rules deny <tool>` | Auto-reject a tool |
 | `/rules ask <tool>` | Always prompt for a tool |
@@ -68,11 +70,8 @@ All commands start with `/` and support **tab completion**.
 | Command | Description |
 |---------|-------------|
 | `/image <path> [message]` | Send an image to the agent |
-| `/graph` | Show the agent's execution graph as a tree |
-| `/graph --browser` | Open graph as Mermaid diagram in browser |
-| `/theme [name]` | Switch color theme |
-
-Available themes: `dark`, `light`, `monokai`, `dracula`, `github-dark`, `one-dark`, `solarized-dark`, `solarized-light`
+| `/graph` | Render agent's execution graph as Mermaid diagram in the browser |
+| `/color [hex]` | Set dynamic accent color (e.g., `/color #ff6b6b`) |
 
 ## Key Bindings
 
@@ -81,14 +80,11 @@ Available themes: `dark`, `light`, `monokai`, `dracula`, `github-dark`, `one-dar
 | **Enter** | Submit message |
 | **Shift+Enter** | Insert newline (kitty/xterm terminals) |
 | **Alt+Enter** | Insert newline (universal) |
-| **Ctrl+J** | Insert newline (universal) |
 | **Ctrl+L** | Clear screen |
 | **Ctrl+D** | Exit |
 | **Tab** | Auto-complete commands |
 
 > **Note on Shift+Enter**: Requires a terminal that supports the [kitty keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/) (Kitty, Ghostty, iTerm2 with protocol enabled). Use Alt+Enter or Ctrl+J as universal alternatives.
-
-Trailing backslash (`\`) also continues input to the next line.
 
 ## Features
 
