@@ -574,10 +574,18 @@ async def run() -> None:
             handled = await dispatch_command(client, session, text)
             if handled:
                 continue
-            # Unknown slash command — forward to agent as a skill invocation
+            # Check if the skill/command exists
+            from deepagent_repl.commands import dynamic_commands
             parts = text[1:].split(None, 1)
             skill_name = parts[0] if parts else text[1:]
             skill_args = parts[1] if len(parts) > 1 else ""
+
+            available_skills = dynamic_commands()
+            if skill_name not in available_skills:
+                render_info(f"Unknown skill or invalid command: /{skill_name}")
+                continue
+
+            # Unknown slash command — forward to agent as a skill invocation
             prompt = f"Use the {skill_name} skill"
             if skill_args:
                 prompt += f": {skill_args}"
