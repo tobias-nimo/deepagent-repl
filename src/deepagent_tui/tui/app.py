@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import time
 import traceback
 from pathlib import Path
@@ -165,6 +166,11 @@ class HintBar(Static):
         "/settings to open config menu.",
         "/help to open help screen.",
     )
+    # Contextual tip mixed into the rotation only while the most recent
+    # assistant response contains a markdown link (rendered as an OSC-8
+    # hyperlink by Rich, so ⌘+click works in modern terminals).
+    _LINK_TIP = "⌘+click to open links."
+    _LINK_RE = re.compile(r"\[[^\]]+\]\([^)]+\)")
     _TICK = 0.1
     _ROTATE_EVERY = 100  # 0.1s * 100 = 10s between idle rotations
 
@@ -251,11 +257,20 @@ class HintBar(Static):
         if value.strip():
             return "Enter to send · Shift+Enter for newline"
 
-        tip = self._TIPS[(self._tick // self._ROTATE_EVERY) % len(self._TIPS)]
+        tips = self._TIPS + ((self._LINK_TIP,) if self._last_response_has_link() else ())
+        tip = tips[(self._tick // self._ROTATE_EVERY) % len(tips)]
         ws = _workspace_label(s)
         if ws:
             return f"{ws}   ·  {tip}"
         return tip
+
+    def _last_response_has_link(self) -> bool:
+        """True when the most recent finalized assistant message contains a
+        markdown link, so the ⌘+click tip can join the rotation."""
+        log = getattr(self.app, "_assistant_widget_log", None)
+        if not log:
+            return False
+        return self._LINK_RE.search(log[-1][1]) is not None
 
 
 class WelcomeBanner(Static):

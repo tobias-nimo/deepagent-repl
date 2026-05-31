@@ -353,6 +353,7 @@ class HelpScreen(ModalScreen[None]):
         ("File references", "Type @ to search workspace files; the chosen file is sent to the agent as a link."),
         ("Shell commands", "Start a line with ! to run a shell command locally — its output appears inline and isn't sent to the agent."),
         ("Pass images", "Copy an image and paste with ⌘V, or paste/drag a local image path; it attaches to your next message."),
+        ("Open links", "When a response includes a link, ⌘+click it to open it in your browser (terminal permitting)."),
         ("Skills", "Run /skills to see what the connected agent can do."),
         ("Resume a thread", "/resume opens a picker of recent threads."),
         ("Rewind to earlier", "/rewind branches a new thread from any past user turn."),

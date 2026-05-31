@@ -47,6 +47,7 @@ For `@`, inserting a directory keeps the menu open so you can drill in; insertin
 | `Ctrl+L` | Clear the message log (does not start a new thread; for that use `/new`) |
 | `Ctrl+C` | Quit the TUI |
 | `PgUp` / `PgDn` | Scroll the transcript by a page |
+| `⌘`/`Ctrl`+click | Open a link in an agent response (terminal permitting — see [Terminal caveats](#terminal-caveats)) |
 
 ## Inline approval
 
@@ -107,3 +108,5 @@ While the approval is showing, the chat bar and rules are hidden so the hint lin
 - iTerm2 — with **"Report modifiers using CSI u"** enabled in Settings → Profiles → Keys
 
 When `Shift+Enter` doesn't work in your terminal, fall back to `Alt+Enter` or `Ctrl+J`, which work everywhere.
+
+Links in agent responses are emitted as OSC-8 hyperlinks, so whether `⌘`/`Ctrl`+click opens them depends on the terminal. Kitty, Ghostty, WezTerm, iTerm2, and the VS Code integrated terminal support it; the default macOS Terminal.app does not. When the rotating hint bar shows `⌘+click to open links.`, the most recent response contains at least one link.
