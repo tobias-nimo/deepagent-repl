@@ -162,9 +162,9 @@ class HintBar(Static):
     available) followed by a rotating tip."""
 
     _TIPS = (
-        "Pass images with ⌘C + ⌘V.",
+        "⌘c+⌘v to pass images.",
         "/settings to open config menu.",
-        "/help to open help screen.",
+        "/help for tips and keyboard shortcuts.",
     )
     # Contextual tip mixed into the rotation only while the most recent
     # assistant response contains a markdown link (rendered as an OSC-8
