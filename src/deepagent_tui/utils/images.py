@@ -16,8 +16,11 @@ _IMAGE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Match image paths as they typically arrive from a terminal drag-and-drop:
-# single-quoted, double-quoted, or bare with backslash-escaped spaces.
+# Match image paths as they typically arrive from a paste or drag-and-drop:
+# single-quoted, double-quoted, or bare. Bare paths may contain literal spaces
+# (e.g. macOS screenshots) or backslash-escaped spaces; the lazy body stops at
+# the first image extension followed by a boundary, and every hit is validated
+# against the filesystem in extract_image_paths, so over-capture is harmless.
 _IMAGE_DROP_RE = re.compile(
     r"""
     (?:
@@ -25,7 +28,7 @@ _IMAGE_DROP_RE = re.compile(
         |
         "(?P<dq>/[^"]+?\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico))"
         |
-        (?P<bare>/(?:[^\s'"\\]|\\.)+?\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico))(?=$|[\s)"',;])
+        (?P<bare>/(?:[^'"\\\n\r]|\\.)+?\.(?:png|jpe?g|gif|bmp|webp|svg|tiff|ico))(?=$|[\s)"',;])
     )
     """,
     re.IGNORECASE | re.VERBOSE,
