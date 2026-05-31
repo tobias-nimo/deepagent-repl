@@ -1291,7 +1291,12 @@ class DeepAgentTUI(App):
             cleaned, paths = extract_image_paths(text)
             image_paths = pending + paths
             if image_paths:
-                text = cleaned or "[image]"
+                # No text alongside the image(s): fall back to a placeholder
+                # naming the attached file(s), e.g. `[shot.png]` or
+                # `[a.png, b.png]`. This shows in the bubble header and is also
+                # what the agent receives as the text block.
+                names = ", ".join(Path(p).name for p in image_paths)
+                text = cleaned or f"[{names}]"
 
         # Rewrite `@workspace/rel/path` file references: the agent receives a
         # `[name](abs path)` markdown link it can act on, while the bubble shows
