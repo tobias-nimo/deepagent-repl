@@ -57,7 +57,9 @@ tool_name(arg=value, ...)
 ```
 ````
 
-A call with no matching result yet (pending or interrupted) is emitted without the `⎿` line. Clipboard backend: `pbcopy` on macOS, `clip` on Windows, `wl-copy` → `xsel` → `xclip` on Linux. Missing tools produce a helpful error.
+A call with no matching result yet (pending or interrupted) is emitted without the `⎿` line.
+
+Attached images are never dumped inline (the base64 data URL would swamp the transcript, and the original filename isn't preserved in server state). Instead each message's image blocks are tallied into a trailing `(n images attached)` line. Clipboard backend: `pbcopy` on macOS, `clip` on Windows, `wl-copy` → `xsel` → `xclip` on Linux. Missing tools produce a helpful error.
 
 ## Appearance
 
