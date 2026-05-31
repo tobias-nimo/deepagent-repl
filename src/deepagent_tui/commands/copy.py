@@ -10,15 +10,53 @@ import sys
 from deepagent_tui.commands import command
 from deepagent_tui.ui.renderer import render_error, render_info
 
+_MEDIA_TYPE_EXT = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/bmp": "bmp",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+    "image/tiff": "tiff",
+    "image/x-icon": "ico",
+}
+
+
+def _image_placeholder(block: dict) -> str:
+    """Return a ``[image.ext]`` placeholder for a multimodal image block.
+
+    The original filename is not preserved in the message content (only the
+    base64 data URL round-trips through server state), so the extension is
+    recovered from the data URL's media type when possible.
+    """
+    media_type = ""
+    if block.get("type") == "image_url":
+        url = (block.get("image_url") or {}).get("url", "")
+        if url.startswith("data:"):
+            media_type = url[len("data:") :].split(";", 1)[0]
+    elif block.get("type") == "image":
+        source = block.get("source") or {}
+        media_type = source.get("media_type", "")
+
+    ext = _MEDIA_TYPE_EXT.get(media_type)
+    return f"[image.{ext}]" if ext else "[image]"
+
 
 def _extract_text(content) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        parts = [
-            b["text"] if isinstance(b, dict) and b.get("type") == "text" else str(b)
-            for b in content
-        ]
+        parts = []
+        for b in content:
+            if isinstance(b, dict):
+                if b.get("type") == "text":
+                    parts.append(b["text"])
+                elif b.get("type") in ("image_url", "image"):
+                    parts.append(_image_placeholder(b))
+                else:
+                    parts.append(str(b))
+            else:
+                parts.append(str(b))
         return "\n".join(parts)
     return str(content)
 
