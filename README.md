@@ -4,9 +4,8 @@ A terminal UI for any [LangChain Deep Agent](https://docs.langchain.com/oss/pyth
 
 Built on [Textual](https://textual.textualize.io/).
 
-<!-- TODO: replace with a short demo clip (asciinema .gif or .mp4) -->
 <p align="center">
-  <img src="assets/demo.gif" alt="deepagent-tui demo" width="720">
+  <img src="assets/demo.webp" alt="deepagent-tui screenshots" width="720">
 </p>
 
 ## Quick start
