@@ -843,6 +843,11 @@ class DeepAgentTUI(App):
         if event.text_area.id != "prompt":
             return
         self._refresh_autocomplete(event.text_area.text)
+        # The chat bar lives inside the scrollable #main region, so a growing
+        # input (newlines / soft-wrap) can push its newest row — and the hint
+        # bar below it — past the bottom fold. Keep the view pinned to the
+        # bottom as the user types so the line they're entering stays visible.
+        self._scroll_to_input()
 
     def _refresh_autocomplete(self, value: str) -> None:
         ac = self.query_one("#autocomplete", OptionList)
