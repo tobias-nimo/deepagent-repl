@@ -4,9 +4,8 @@ A terminal UI for any [LangChain Deep Agent](https://docs.langchain.com/oss/pyth
 
 Built on [Textual](https://textual.textualize.io/).
 
-<!-- TODO: replace with a short demo clip (asciinema .gif or .mp4) -->
 <p align="center">
-  <img src="assets/demo.gif" alt="deepagent-tui demo" width="720">
+  <img src="assets/demo.webp" alt="deepagent-tui screenshots" width="720">
 </p>
 
 ## Quick start
@@ -39,3 +38,12 @@ Full guides live in [`docs/`](docs/README.md):
 
 - **Using it** — [Configuration](docs/configuration.md) · [Input bar](docs/input.md) · [Commands](docs/commands.md) · [Key bindings](docs/keybindings.md) · [Themes](docs/themes.md) · [Images](docs/images.md) · [HITL approvals](docs/hitl.md) · [Threads](docs/threads.md) · [Skills](docs/skills.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Hacking on it** — [Architecture](docs/architecture.md) · [Tool widgets](docs/tool-widgets.md) · [Testing](docs/testing.md)
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the
+pre-push checks, and PR conventions.
+
+## License
+
+[MIT](LICENSE) © Tobias Nimo
