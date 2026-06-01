@@ -9,6 +9,10 @@ build/
 .env
 *.db
 .ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 .claude/*
 !.claude/skills/
 .DS_Store

@@ -1,22 +1,17 @@
-"""Unit tests for per-agent (graph) scoping of settings and thread history.
+"""Per-agent (graph) scoping of settings and thread history.
 
 Settings live in config.toml with a default layer plus `[graph."<id>"]`
 overrides; thread history is filtered by graph_id (always) and workspace (when
-known). Both use tmp paths so the user's real state is never touched.
+known). The `cfg_paths` / `db_paths` fixtures (see tests/conftest.py) redirect
+both to tmp paths so the user's real state is never touched.
 """
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from deepagent_tui.storage import config_store, db
 from deepagent_tui.storage.config_store import UserConfig
 
-
-@pytest.fixture()
-def cfg_paths(monkeypatch, tmp_path):
-    cfg_dir = tmp_path / ".deepagent-tui"
-    monkeypatch.setattr(config_store, "_CONFIG_DIR", cfg_dir)
-    monkeypatch.setattr(config_store, "_CONFIG_FILE", cfg_dir / "config.toml")
+# ── config scoping ────────────────────────────────────────────────────────
 
 
 def test_graph_override_does_not_leak_to_default(cfg_paths):
@@ -58,10 +53,7 @@ def test_flat_legacy_file_reads_as_default(cfg_paths):
     assert cfg.theme == "ocean"
 
 
-@pytest.fixture()
-def db_paths(monkeypatch, tmp_path):
-    monkeypatch.setattr(db, "DB_DIR", tmp_path)
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "threads.db")
+# ── thread index scoping ──────────────────────────────────────────────────
 
 
 async def test_list_threads_scopes_by_graph(db_paths):

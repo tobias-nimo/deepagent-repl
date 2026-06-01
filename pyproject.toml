@@ -18,6 +18,7 @@ dev = [
     "ruff>=0.8",
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
 ]
 
 [project.scripts]
@@ -42,3 +43,25 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+# Coverage is opt-in: a plain `uv run pytest` stays fast and never fails on a
+# coverage threshold (so `-k <filter>` runs work). CI runs `pytest --cov` to
+# enforce the gate below. The gate is scoped to the pure-logic layer — the
+# parts that are cheap and worthwhile to keep green — rather than the whole
+# app; UI glue in tui/ and the IO-coupled command bodies are exercised by the
+# app/cli tests but intentionally left out of the number. See docs/testing.md.
+[tool.coverage.run]
+branch = true
+source = ["deepagent_tui"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 85
+include = [
+    "*/deepagent_tui/handlers/*",
+    "*/deepagent_tui/utils/*",
+    "*/deepagent_tui/storage/*",
+    "*/deepagent_tui/session.py",
+    "*/deepagent_tui/ui/tool_widgets.py",
+    "*/deepagent_tui/commands/__init__.py",
+]

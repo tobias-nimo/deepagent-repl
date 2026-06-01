@@ -8,13 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync --extra dev                  # install (incl. dev extras pinned via uv.lock)
 uv run deepagent                     # launch the TUI (bare command; entry: deepagent_tui.cli:main)
 uv run deepagent query "..."         # headless one-shot CLI (same entry; see docs/cli.md)
-uv run pytest                        # smoke test suite (Textual pilot, no server needed)
-uv run pytest tests/test_tui_smoke.py::test_app_boots_and_mounts_core_widgets   # single test
+uv run pytest                        # full suite (Textual pilot, no server needed)
+uv run pytest tests/unit             # one layer (unit | app | cli)
 uv run pytest -k slash               # filter by keyword
+uv run pytest --cov                  # with the coverage gate (what CI runs)
 uv run ruff check                    # lint (line-length 100, py312, rules: E/F/I)
 ```
 
-`pytest-asyncio` runs in `auto` mode, so `async def test_*` works without decorators. The smoke suite stubs `bootstrap.connect` and `bootstrap.discover_and_register_skills` via an autouse fixture in `tests/test_tui_smoke.py` — no real LangGraph server is required.
+The suite is a pyramid under `tests/`: `unit/` (pure logic, no app boot), `app/` (boots `DeepAgentTUI` via Textual's pilot), and `cli/` (the headless runner). `pytest-asyncio` runs in `auto` mode, so `async def test_*` works without decorators. The app layer stubs `bootstrap.connect` and `bootstrap.discover_and_register_skills` via an autouse fixture in `tests/app/conftest.py` — no real LangGraph server is required. Coverage is opt-in (plain `pytest` has no gate); `pytest --cov` enforces a `fail_under` gate scoped to the pure-logic layer. See `docs/testing.md`.
 
 ## Runtime expectations
 
@@ -29,7 +30,7 @@ State written outside the repo:
 Full map: `docs/architecture.md`. Big-picture summary:
 
 - **`tui/app.py`** is the `DeepAgentTUI` Textual app — owns the UI, the keystroke handlers, the stream worker, and the ESC-rollback path. Most cross-cutting changes start here.
-- **`bootstrap.py`** runs once on `on_mount`: discovers an assistant via `client.AgentClient`, creates or attaches to a thread, registers skills. The smoke tests stub these two entry points.
+- **`bootstrap.py`** runs once on `on_mount`: discovers an assistant via `client.AgentClient`, creates or attaches to a thread, registers skills. The app-layer tests stub these two entry points.
 - **`session.py`** holds the per-run mutable state (assistant_id, graph_id, thread_id, status, message log, token counters, skills). It is passed by reference everywhere; don't shadow it with copies.
 - **`handlers/`** is the streaming brain. A user message kicks off `client.stream_message(...)` with `stream_mode=["updates","messages"]` and `stream_subgraphs=True`. `handlers/stream.py` finalizes partial text on `updates`, `handlers/tools.py` turns raw tool-call/result payloads into `FormattedToolCall`/`FormattedToolResult`, and `handlers/interrupt.py` parses HITL interrupts and builds the `Command(resume=...)` payload. Subagent activity arrives as `updates|<namespace>` — `_handle_subagent_update` in `tui/app.py` binds each namespace FIFO to the oldest pending subagent task so `⎿` progress lines land on the right widget.
 - **`ui/tool_widgets.py`** renders each tool call inline. Dispatch is by tool name through `_tool_alias` (so `edit_file`, `str_replace_editor`, etc. share a renderer). A widget has a pending state (`○`, dim) that flips to success/error/rejected (`●` in green/red/amber) when the result arrives. To add a tool, add `_call_<n>` and `_result_<n>`, register in `_CALL_RENDERERS`/`_RESULT_RENDERERS`, and alias the source name(s) in `_tool_alias`.
