@@ -16,6 +16,7 @@ async def cmd_new(client, session, args: str) -> None:
     session.messages = []
     session.input_tokens = 0
     session.output_tokens = 0
+    session.last_input_tokens = 0
     session.total_cost = 0.0
 
     # Don't index the empty thread — the stream worker upserts on first
