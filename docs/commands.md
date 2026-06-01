@@ -9,7 +9,7 @@ Opens a four-tab modal docked to the bottom 60% of the screen (`HelpScreen` in `
 
 - **Help** — friendly welcome plus a short overview of the TUI and deep agents, followed by getting-started instructions.
 - **Keyboard** — keyboard shortcuts (Enter / Shift+Enter / Tab / Esc / ↑↓ message recall / Shift+arrows selection / Shift+Tab focus toggle / Fn+↑↓ paging).
-- **Tips** — quick workflow hints (slash commands, @ file references, ! shell commands, passing images, skills, /resume, /rewind).
+- **Tips** — quick workflow hints (slash commands, @ file references, ! shell commands, passing images, opening links, copying text, /resume, /rewind).
 - **Commands** — the full list of built-in slash commands (name + description), followed by a short note explaining that skills are invoked as `/<skill-name>` and pointing to `/skills` to see what the current agent exposes.
 
 ### `/new`
@@ -57,7 +57,9 @@ tool_name(arg=value, ...)
 ```
 ````
 
-A call with no matching result yet (pending or interrupted) is emitted without the `⎿` line. Clipboard backend: `pbcopy` on macOS, `clip` on Windows, `wl-copy` → `xsel` → `xclip` on Linux. Missing tools produce a helpful error.
+A call with no matching result yet (pending or interrupted) is emitted without the `⎿` line.
+
+Attached images are never dumped inline (the base64 data URL would swamp the transcript, and the original filename isn't preserved in server state). Instead each message's image blocks are tallied into a trailing `(n images attached)` line. Clipboard backend: `pbcopy` on macOS, `clip` on Windows, `wl-copy` → `xsel` → `xclip` on Linux. Missing tools produce a helpful error.
 
 ## Appearance
 

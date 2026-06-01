@@ -148,6 +148,7 @@ async def _switch_thread(client, session, thread_id: str) -> None:
     session.messages = []
     session.input_tokens = 0
     session.output_tokens = 0
+    session.last_input_tokens = 0
     session.total_cost = 0.0
 
     try:

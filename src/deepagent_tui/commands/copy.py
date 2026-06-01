@@ -12,14 +12,29 @@ from deepagent_tui.ui.renderer import render_error, render_info
 
 
 def _extract_text(content) -> str:
+    """Flatten message content to text. Multimodal image blocks aren't
+    rendered inline (the original filename isn't preserved in server state);
+    instead they're tallied into a trailing ``(n images attached)`` line."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        parts = [
-            b["text"] if isinstance(b, dict) and b.get("type") == "text" else str(b)
-            for b in content
-        ]
-        return "\n".join(parts)
+        parts = []
+        image_count = 0
+        for b in content:
+            if isinstance(b, dict):
+                if b.get("type") == "text":
+                    parts.append(b["text"])
+                elif b.get("type") in ("image_url", "image"):
+                    image_count += 1
+                else:
+                    parts.append(str(b))
+            else:
+                parts.append(str(b))
+        text = "\n".join(parts)
+        if image_count:
+            marker = f"({image_count} image{'s' if image_count != 1 else ''} attached)"
+            text = f"{text}\n{marker}" if text else marker
+        return text
     return str(content)
 
 

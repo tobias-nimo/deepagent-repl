@@ -6,7 +6,7 @@ Attach images to messages so the agent can see them.
 
 Three ways an image gets attached:
 
-1. **Drag & drop** — drop a file into the terminal; most terminals paste a quoted path. The TUI extracts the path (single-quoted, double-quoted, or bare with backslash-escaped spaces) and stages it for the next message.
+1. **Drag & drop** — drop a file into the terminal; most terminals paste a quoted path. The TUI extracts the path (single-quoted, double-quoted, or bare — including paths with literal unescaped spaces, e.g. a macOS screenshot like `Screenshot 2026-05-31 at 6.28.41 PM.png`) and stages it for the next message.
 2. **Paste a path** — paste any `/path/to/file.png`-style absolute path; same detection rules apply.
 3. **Type-and-send** — paths matching an image extension inside a typed message also get extracted and attached.
 
@@ -38,7 +38,7 @@ Each attachment is read from disk, base64-encoded, and sent as an `image_url` bl
 ]
 ```
 
-If the message text is empty after path extraction, the placeholder `Please analyze this image.` is used so there's always a text block.
+If the message text is empty after path extraction, the text block falls back to a placeholder naming the attached file(s) — `[shot.png]` for one, `[a.png, b.png]` for several. The same string is shown in the bubble header, so a lone-image message is identifiable at a glance.
 
 ## Inline rendering (output)
 

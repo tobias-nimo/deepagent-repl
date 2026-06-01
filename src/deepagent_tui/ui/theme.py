@@ -30,6 +30,12 @@ THEMES: dict[str, Theme] = {
     "langchain":  Theme("langchain",  "#a5c8ff",  "#5b9eff", (200, 220, 255),  (60, 130, 220)),
 }
 
+# Markdown links are styled with a fixed hyperlink blue rather than the
+# palette's `command` color, so they read as "clickable links" consistently
+# across every theme (and stay visually distinct from theme-colored inline
+# code, headings, etc.).
+LINK_COLOR = "#4ea3ff"
+
 _CONFIG_DIR = Path.home() / ".deepagent-tui"
 # Pre-config.toml the theme name lived in its own bare file. We still read it
 # once to migrate the value into config.toml, then delete it.
@@ -120,8 +126,8 @@ def markdown_theme() -> RichTheme:
         {
             "markdown.code": command,
             "markdown.code_block": accent,
-            "markdown.link": f"underline {command}",
-            "markdown.link_url": f"underline {command}",
+            "markdown.link": f"underline {LINK_COLOR}",
+            "markdown.link_url": f"underline {LINK_COLOR}",
             "markdown.list": "",
             "markdown.item.number": "",
             "markdown.block_quote": "dim",

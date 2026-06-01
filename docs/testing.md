@@ -4,7 +4,9 @@ The test suite is small on purpose: a single smoke file that catches the kinds o
 
 ## What's there today
 
-`tests/test_tui_smoke.py` boots the app with stubbed bootstrap (no server needed) and asserts that the layout mounts and basic interactions don't blow up. Five tests, ~0.5s total.
+`tests/test_tui_smoke.py` boots the app with stubbed bootstrap (no server needed) and asserts that the layout mounts and basic interactions don't blow up. It has grown beyond the original layout smoke checks to also cover the settings modal, the `@`/`!` input prefixes, file-reference rewriting, input-history recall, and paste handling — a couple dozen tests, all sub-second.
+
+A representative slice of the core layout/wiring tests:
 
 | Test | What it covers |
 |------|----------------|
@@ -14,7 +16,7 @@ The test suite is small on purpose: a single smoke file that catches the kinds o
 | `test_status_bar_refresh_uses_session_state` | Manually mutating `session.input_tokens` / `output_tokens` and calling `StatusBar._refresh()` renders the graph id correctly |
 | `test_connect_failure_does_not_crash_app` | When `connect()` returns `False`, the app still mounts its widgets (it schedules an exit instead of crashing) |
 
-Alongside the smoke file: `tests/test_cli_smoke.py` and `tests/test_settings_modal.py`, plus `tests/test_storage_scoping.py` — pure unit tests over `storage/` (no app boot) covering per-agent config layering (default + `[graph."<id>"]` overrides, isolation, legacy flat-file read) and graph/workspace-scoped thread history (filtering and workspace backfill). All use tmp paths so the user's real state is never touched.
+Alongside the smoke file: `tests/test_cli_smoke.py`, `tests/test_settings_modal.py`, and `tests/test_stream_handler.py`, plus `tests/test_storage_scoping.py` — pure unit tests over `storage/` (no app boot) covering per-agent config layering (default + `[graph."<id>"]` overrides, isolation, legacy flat-file read) and graph/workspace-scoped thread history (filtering and workspace backfill). All use tmp paths so the user's real state is never touched.
 
 ## Running
 

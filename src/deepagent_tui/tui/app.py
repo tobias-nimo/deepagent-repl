@@ -2,21 +2,20 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import time
 import traceback
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console, Group
-from rich.console import RenderableType
+from rich.console import Console, Group, RenderableType
 from rich.text import Text
 from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.message import Message
-from textual.widgets import Rule, Static, TextArea
-from textual.widgets import OptionList
+from textual.widgets import OptionList, Rule, Static, TextArea
 from textual.widgets.option_list import Option
 
 import deepagent_tui.ui.theme as _theme
@@ -163,10 +162,15 @@ class HintBar(Static):
     available) followed by a rotating tip."""
 
     _TIPS = (
-        "Pass images with ⌘C + ⌘V.",
+        "⌘c+⌘v to pass images.",
         "/settings to open config menu.",
-        "/help to open help screen.",
+        "/help for tips and keyboard shortcuts.",
     )
+    # Contextual tip mixed into the rotation only while the most recent
+    # assistant response contains a markdown link (rendered as an OSC-8
+    # hyperlink by Rich, so ⌘+click works in modern terminals).
+    _LINK_TIP = "⌘+click to open links."
+    _LINK_RE = re.compile(r"\[[^\]]+\]\([^)]+\)")
     _TICK = 0.1
     _ROTATE_EVERY = 100  # 0.1s * 100 = 10s between idle rotations
 
@@ -253,11 +257,20 @@ class HintBar(Static):
         if value.strip():
             return "Enter to send · Shift+Enter for newline"
 
-        tip = self._TIPS[(self._tick // self._ROTATE_EVERY) % len(self._TIPS)]
+        tips = self._TIPS + ((self._LINK_TIP,) if self._last_response_has_link() else ())
+        tip = tips[(self._tick // self._ROTATE_EVERY) % len(tips)]
         ws = _workspace_label(s)
         if ws:
             return f"{ws}   ·  {tip}"
         return tip
+
+    def _last_response_has_link(self) -> bool:
+        """True when the most recent finalized assistant message contains a
+        markdown link, so the ⌘+click tip can join the rotation."""
+        log = getattr(self.app, "_assistant_widget_log", None)
+        if not log:
+            return False
+        return self._LINK_RE.search(log[-1][1]) is not None
 
 
 class WelcomeBanner(Static):
@@ -830,6 +843,11 @@ class DeepAgentTUI(App):
         if event.text_area.id != "prompt":
             return
         self._refresh_autocomplete(event.text_area.text)
+        # The chat bar lives inside the scrollable #main region, so a growing
+        # input (newlines / soft-wrap) can push its newest row — and the hint
+        # bar below it — past the bottom fold. Keep the view pinned to the
+        # bottom as the user types so the line they're entering stays visible.
+        self._scroll_to_input()
 
     def _refresh_autocomplete(self, value: str) -> None:
         ac = self.query_one("#autocomplete", OptionList)
@@ -922,14 +940,21 @@ class DeepAgentTUI(App):
         shows a hint instead of leaking the directory the TUI was launched
         from."""
         if not self.session.workspace_root:
+            # Distinguish "not loaded yet" from "never going to load": once a
+            # message has been sent the workspace root would have arrived in
+            # thread state, so its absence means the workspace middleware isn't
+            # attached server-side rather than a not-yet-loaded race.
+            if self.session.messages:
+                hint = (
+                    "File paths aren't available. "
+                    "See docs/server-middleware.md to enable them."
+                )
+            else:
+                hint = "Send a message first to load the workspace before browsing files"
             ac.clear_options()
             ac.add_option(
                 Option(
-                    Text(
-                        "Send a message first to load the workspace before "
-                        "browsing files",
-                        style="dim",
-                    )
+                    Text(hint, style="dim")
                 )  # no id → Tab / click is a no-op
             )
             self._ac_mode = "file"
@@ -1271,7 +1296,12 @@ class DeepAgentTUI(App):
             cleaned, paths = extract_image_paths(text)
             image_paths = pending + paths
             if image_paths:
-                text = cleaned or "[image]"
+                # No text alongside the image(s): fall back to a placeholder
+                # naming the attached file(s), e.g. `[shot.png]` or
+                # `[a.png, b.png]`. This shows in the bubble header and is also
+                # what the agent receives as the text block.
+                names = ", ".join(Path(p).name for p in image_paths)
+                text = cleaned or f"[{names}]"
 
         # Rewrite `@workspace/rel/path` file references: the agent receives a
         # `[name](abs path)` markdown link it can act on, while the bubble shows
@@ -1358,6 +1388,8 @@ class DeepAgentTUI(App):
     async def _run_command(self, text: str) -> None:
         from deepagent_tui.commands import (
             dispatch as dispatch_command,
+        )
+        from deepagent_tui.commands import (
             get_command,
             is_dynamic,
         )
@@ -1381,10 +1413,11 @@ class DeepAgentTUI(App):
                 self.action_clear_log()
                 return
 
-            # /compact bypasses the LLM: inject a synthetic compact_conversation
-            # tool call into thread state and resume — the streaming pipeline
-            # mounts the tool widget the same way it would for any agent-issued
-            # call. Same shape as the dynamic-skill branch below.
+            # /compact runs silently: it sends a focused user prompt asking the
+            # agent to call compact_conversation, drains the stream without
+            # mounting any tool widgets, then removes every message the turn
+            # added via RemoveMessage. See _submit_compact for the full flow.
+            # Routed through the stream worker like the dynamic-skill branch below.
             if name_lc == "compact":
                 self._begin_turn_timer()
                 worker = self.run_worker(
@@ -1686,10 +1719,20 @@ class DeepAgentTUI(App):
         if not self.session.workspace_root:
             from deepagent_tui.ui.renderer import render_info
 
-            render_info(
-                "Send a message first to load the workspace before running "
-                "shell commands."
-            )
+            # Once a message has been sent the workspace root would have arrived
+            # in thread state; its continued absence means the workspace
+            # middleware isn't attached server-side rather than a not-yet-loaded
+            # race.
+            if self.session.messages:
+                render_info(
+                    "Shell mode isn't available. "
+                    "See docs/server-middleware.md to enable it."
+                )
+            else:
+                render_info(
+                    "Send a message first to load the workspace before running "
+                    "shell commands."
+                )
             return
         worker = self.run_worker(
             self._exec_shell(command),
