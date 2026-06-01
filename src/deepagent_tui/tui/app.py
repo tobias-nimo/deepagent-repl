@@ -1413,10 +1413,11 @@ class DeepAgentTUI(App):
                 self.action_clear_log()
                 return
 
-            # /compact bypasses the LLM: inject a synthetic compact_conversation
-            # tool call into thread state and resume — the streaming pipeline
-            # mounts the tool widget the same way it would for any agent-issued
-            # call. Same shape as the dynamic-skill branch below.
+            # /compact runs silently: it sends a focused user prompt asking the
+            # agent to call compact_conversation, drains the stream without
+            # mounting any tool widgets, then removes every message the turn
+            # added via RemoveMessage. See _submit_compact for the full flow.
+            # Routed through the stream worker like the dynamic-skill branch below.
             if name_lc == "compact":
                 self._begin_turn_timer()
                 worker = self.run_worker(
