@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Terminal UI for any LangChain Deep Agent server"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
 dependencies = [
     "langgraph-sdk>=0.3.11",
     "rich>=13.0",

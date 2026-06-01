@@ -39,3 +39,12 @@ Full guides live in [`docs/`](docs/README.md):
 
 - **Using it** — [Configuration](docs/configuration.md) · [Input bar](docs/input.md) · [Commands](docs/commands.md) · [Key bindings](docs/keybindings.md) · [Themes](docs/themes.md) · [Images](docs/images.md) · [HITL approvals](docs/hitl.md) · [Threads](docs/threads.md) · [Skills](docs/skills.md) · [Troubleshooting](docs/troubleshooting.md)
 - **Hacking on it** — [Architecture](docs/architecture.md) · [Tool widgets](docs/tool-widgets.md) · [Testing](docs/testing.md)
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the
+pre-push checks, and PR conventions.
+
+## License
+
+[MIT](LICENSE) © Tobias Nimo
